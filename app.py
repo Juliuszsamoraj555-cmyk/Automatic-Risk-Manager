@@ -19,7 +19,7 @@ kwota = st.sidebar.number_input("Kwota inwestycji (PLN/USD):", value=25000, step
 ryzyko = st.sidebar.select_slider("Poziom Ryzyka:", options=['low', 'medium', 'high'], value='medium')
 
 st.sidebar.subheader("Opcje Zaawansowane")
-limit_2x = st.sidebar.checkbox("Zastosuj limit 2x (Dywersyfikacja)", value=True, help="Największa pozycja będzie max 2x większa od najmniejszej.")
+limit_2x = st.sidebar.checkbox("Zastosuj limit 2x (Dywersyfikacja)", value=True)
 run_mc = st.sidebar.checkbox("Uruchom Symulację Monte Carlo", value=True)
 
 if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
@@ -29,39 +29,35 @@ if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
         # Pobieranie danych (3 lata)
         raw_data = yf.download(tickers, period="3y")['Close']
         
-        # Dane dzienne (do Monte Carlo)
+        # Dane dzienne (do Monte Carlo i Cholesky'ego)
         daily_returns = raw_data.pct_change().dropna()
         
         # Dane miesięczne (do VaR i optymalizacji)
         monthly_data = raw_data.resample('ME').last()
         monthly_returns = monthly_data.pct_change().dropna()
         
-        # Obliczenia bazowe (z dopasowaniem indeksów)
+        # Obliczenia bazowe (monthly_vars zachowuje tickery jako index)
         monthly_vars = monthly_returns.quantile(0.05) * -1
         corr_matrix = monthly_returns.corr()
         avg_corr_each = corr_matrix.mean()
 
     # --- SILNIK OPTYMALIZACJI ---
-    # Logika wag na podstawie Twojego pomysłu (1/VaR * (1-Corr))
     risk_map = {'low': 2.0, 'medium': 1.0, 'high': 0.5}
     penalty = risk_map.get(ryzyko)
     
-    # Wyliczamy wagi idealne (target)
+    # Wyliczamy wagi idealne (target) na podstawie Twojej formuły
     target_weights_raw = (1 / (monthly_vars ** penalty)) * (1 - avg_corr_each)
     target_weights = target_weights_raw / target_weights_raw.sum()
 
-    # Optymalizacja matematyczna, aby uwzględnić opcjonalny limit 2x
+    # Optymalizacja matematyczna
     def objective(weights): 
         return np.sum((weights - target_weights)**2)
 
     constraints = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1}]
     if limit_2x:
-        # Constraint: max(x) <= 2 * min(x) -> 2*min - max >= 0
         constraints.append({'type': 'ineq', 'fun': lambda x: 2 * np.min(x) - np.max(x)})
     
-    # Granice (min 1% portfela na spółkę)
     bounds = tuple((0.01, 1.0) for _ in range(len(tickers)))
-    
     res = minimize(objective, target_weights.values, method='SLSQP', bounds=bounds, constraints=constraints)
     final_weights = res.x
 
@@ -81,10 +77,7 @@ if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
 
     with col_stats:
         st.subheader("📉 Statystyki Ryzyka")
-        # Monthly VaR Portfela (Ważona suma VaR-ów spółek)
         portfel_var = (final_weights * monthly_vars).sum()
-        
-        # Średnia korelacja (bez przekątnej)
         mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
         mean_corr_val = corr_matrix.where(mask).stack().mean()
 
@@ -97,9 +90,9 @@ if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
         st.divider()
         st.header("🔮 Projekcje Długoterminowe (Monte Carlo)")
         
-        # Wizualizacja Cholesky'ego
         st.subheader("🧬 Macierz Cholesky'ego")
-        st.info("Poniższa macierz pokazuje, jak algorytm łączy ryzyka różnych spółek w jeden model symulacyjny.")
+        st.info("Algorytm dekompozycji Cholesky'ego pozwala symulować przyszłość z zachowaniem historycznych korelacji między spółkami.")
+        
         cov_matrix_daily = daily_returns.cov()
         L = np.linalg.cholesky(cov_matrix_daily)
         
@@ -114,9 +107,10 @@ if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
         
         def run_sim(years):
             days = years * 252
+            # Szum losowy: (dni, symulacje, spółki)
             Z = np.random.normal(size=(days, n_sims, len(tickers)))
-            # Aplikacja korelacji Cholesky'ego
-            correlated_shocks = np.einsum('jk,ikl->ijl', L, Z)
+            # Poprawione mnożenie macierzy szumu przez korelacje
+            correlated_shocks = Z @ L.T 
             daily_sim_rets = mean_daily + correlated_shocks
             port_daily_rets = np.dot(daily_sim_rets, final_weights)
             return kwota * np.prod(1 + port_daily_rets, axis=0)
@@ -124,7 +118,6 @@ if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
         results_5y = run_sim(5)
         results_10y = run_sim(10)
 
-        # Tabele statystyk side-by-side
         col_5y, col_10y = st.columns(2)
 
         for i, (y_data, y_label) in enumerate(zip([results_5y, results_10y], ["5 lat", "10 lat"])):
@@ -142,20 +135,18 @@ if st.sidebar.button("🚀 Analizuj i Optymalizuj"):
                 st.subheader(f"📅 Prognoza na {y_label}")
                 st.table(stats_df)
                 
-                # Histogram rozkładu
                 fig_h, ax_h = plt.subplots(figsize=(6, 3))
                 sns.histplot(y_data, bins=30, kde=True, color=("orange" if i==0 else "green"), ax=ax_h)
                 ax_h.axvline(kwota, color='red', linestyle='--', label="Start")
                 ax_h.set_title(f"Rozkład kapitału po {y_label}")
                 st.pyplot(fig_h)
 
-    # --- SEKCJA 3: KORELACJE NA DOLE ---
+    # --- SEKCJA 3: KORELACJE ---
     st.divider()
     st.subheader("🔗 Mapa Korelacji Aktywów")
-    st.write("Analiza powiązań historycznych wykorzystana do optymalizacji wag.")
     fig_corr, ax_corr = plt.subplots(figsize=(10, 5))
     sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_corr, annot_kws={"size": 8})
     plt.xticks(rotation=45)
     st.pyplot(fig_corr)
 
-    st.caption("Dane historyczne pochodzą z Yahoo Finance. Symulacje Monte Carlo nie gwarantują przyszłych zysków.")
+    st.caption("Analiza oparta na danych historycznych z 36 miesięcy. Symulacje nie stanowią gwarancji przyszłych wyników.")
