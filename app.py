@@ -11,9 +11,9 @@ import os
 # 1. KONFIGURACJA STRONY
 try:
     v_alpha_icon = Image.open('image_8.png')
-    st.set_page_config(page_title="Risk Manager Pro", page_icon=v_alpha_icon, layout="wide")
+    st.set_page_config(page_title="Valpha Portfolio Manager", page_icon=v_alpha_icon, layout="wide")
 except:
-    st.set_page_config(page_title="Risk Manager Pro", layout="wide")
+    st.set_page_config(page_title="Valpha Portfolio Manager", layout="wide")
 
 # 2. DESIGN CSS (SaaS Tech Look - Bez emoji)
 st.markdown("""
