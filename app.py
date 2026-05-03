@@ -6,10 +6,10 @@ from scipy.optimize import minimize
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# 1. KONFIGURACJA STRONY
+# 1. KONFIGURACJA STRONY (Musi być pierwsza!)
 st.set_page_config(page_title="Automatic Risk Manager Pro", page_icon="🛡️", layout="wide")
 
-# 2. DESIGN CSS
+# 2. DESIGN CSS (SaaS Look)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -26,7 +26,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. SIDEBAR
+# 3. SIDEBAR (Z PRZYWRÓCONYMI PEŁNYMI OPISAMI)
 st.title("🛡️ Risk Manager Pro")
 with st.sidebar:
     st.header("⚙️ Ustawienia")
@@ -36,10 +36,15 @@ with st.sidebar:
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
         help="""
         **Jak wpisywać symbole?**
+        
         System pobiera dane z Yahoo Finance. 
-        * **USA:** Sam ticker (np. `AAPL`).
-        * **Polska:** Dodaj `.WA` (np. `ALE.WA`).
-        * **Krypto:** Dodaj `-USD` (np. `BTC-USD`).
+        * **USA:** Wpisuj sam ticker (np. `AAPL`, `TSLA`, `MSFT`).
+        * **Polska (GPW):** Dodaj `.WA` (np. `ALE.WA`, `PKO.WA`).
+        * **Niemcy:** Dodaj `.DE` (np. `BMW.DE`).
+        * **Kryptowaluty:** Dodaj `-USD` (np. `BTC-USD`).
+        * **Złoto/Surowce:** Użyj symboli kontraktów (np. `GC=F` dla złota).
+        
+        Wyszukaj ticker na *finance.yahoo.com*, jeśli nie jesteś pewien.
         """
     )
     
@@ -47,7 +52,6 @@ with st.sidebar:
     
     st.divider()
     
-    # --- NOWA OPCJA: TRYB OPTYMALIZACJI ---
     opt_mode = st.radio(
         "Tryb Optymalizacji:",
         ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
@@ -66,14 +70,22 @@ with st.sidebar:
         value=True,
         help="""
         **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza.
-        Zapobiega to dominacji jednej spółki i chroni przed ryzykiem specyficznym.
+        
+        **W jakim celu?**
+        Zapobiega to tzw. 'dominacji' jednej spółki. Nawet jeśli model uzna jakąś firmę za bardzo bezpieczną, limit ten wymusza rozłożenie kapitału na pozostałe aktywa. Chroni Cię to przed **ryzykiem specyficznym** – czyli sytuacją, w której jedna firma nagle upada z przyczyn, których nie widać w statystykach.
         """
     )
     
     run_mc = st.checkbox(
         "Wykonaj symulacje Monte Carlo", 
         value=True,
-        help="Przeprowadza 10,000 wirtualnych rzutów kostką, tworząc tysiące scenariuszy przyszłości dla Twojego portfela."
+        help="""
+        **Co to robi?**
+        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
+        
+        **Dlaczego to ważne?**
+        Zamiast jednej linii 'zysku', widzisz cały wachlarz możliwości – od bardzo optymistycznych po kryzysowe. Pozwala to realnie ocenić **szansę na stratę** oraz zrozumieć, jak szeroki jest zakres niepewności w inwestowaniu.
+        """
     )
     
     st.divider()
@@ -96,18 +108,14 @@ if analizuj:
             corr_matrix = df_monthly_rets.corr()
             avg_corr_each = corr_matrix.mean()
 
-        # --- NOWY SILNIK OPTYMALIZACJI ---
+        # --- SILNIK OPTYMALIZACJI ---
         if opt_mode == "Bezpieczeństwo (VaR-First)":
             penalty = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko]
             target_w_raw = (1 / (monthly_vars ** penalty)) * (1 - avg_corr_each)
         else:
-            # Optymalizacja pod wskaźnik Sortino
             mean_ret = df_monthly_rets.mean()
-            # Downside Deviation (tylko zmienność ujemna)
             downside_std = df_monthly_rets[df_monthly_rets < 0].std()
-            # Sortino Ratio = Zysk / Ryzyko spadku
             sortino_ratios = mean_ret / (downside_std + 1e-6)
-            # Przeskalowanie pod ryzyko (high risk = bardziej agresywne dociążenie liderów Sortino)
             power_map = {'low': 0.5, 'medium': 1.0, 'high': 1.5}
             target_w_raw = (sortino_ratios.clip(lower=0) ** power_map[ryzyko]) * (1 - avg_corr_each)
 
@@ -134,9 +142,21 @@ if analizuj:
             mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
             mean_c = corr_matrix.where(mask).stack().mean()
             
-            c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%", help="Statystyczna miara ryzyka straty miesięcznej.")
-            c2.metric("Średnia Korelacja", f"{mean_c:.2f}", help="Mierzy jak bardzo aktywa poruszają się w tym samym kierunku.")
-            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}", help=f"Szacowana miesięczna strata przy kapitale {kwota:,.0f} PLN.")
+            c1.metric(
+                "Miesięczny VaR (95%)", 
+                f"{p_var*100:.2f}%",
+                help="Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca Twój portfel straci więcej niż ten procent. Jest to miara 'normalnego' ryzyka rynkowego w złym scenariuszu."
+            )
+            c2.metric(
+                "Średnia Korelacja", 
+                f"{mean_c:.2f}",
+                help="Określa, jak bardzo spółki poruszają się 'w parze'. Bliżej 0 oznacza świetną dywersyfikację, powyżej 0.5 oznacza, że aktywa są mocno powiązane i mogą spadać jednocześnie."
+            )
+            c3.metric(
+                "Ryzyko (PLN)", 
+                f"{p_var * kwota:,.2f}",
+                help=f"To Twój miesięczny VaR przeliczony na konkretną kwotę przy Twoim kapitale ({kwota:,.0f} PLN). W statystycznie najgorszym miesiącu (scenariusz 5%) powinieneś być gotowy na akceptację straty właśnie takiej wysokości."
+            )
             
             st.divider()
             df_wynik = pd.DataFrame({
