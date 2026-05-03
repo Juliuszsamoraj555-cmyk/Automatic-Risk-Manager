@@ -1,17 +1,3 @@
-Zrozumiałem – przywracam pełną, merytoryczną „pancerną” treść wszystkich opisów. Masz rację, te teksty to serce aplikacji, które sprawia, że Janek czuje się prowadzony za rękę przez profesjonalnego doradcę, a nie zostawiony samemu sobie z suchymi liczbami.
-
-Poniżej znajduje się kompletny kod app.py, w którym przywróciłem najbogatsze wersje opisów dla:
-
-Tickerów (pełna ściąga giełd).
-
-Limitów dywersyfikacji (wyjaśnienie dominacji i ryzyka specyficznego).
-
-Symulacji Monte Carlo (metafora rzutu kostką i zakresu niepewności).
-
-Metryk VaR/Korelacji (tłumaczenie „na chłopski rozum”).
-
-Kompletny Kod app.py
-Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
