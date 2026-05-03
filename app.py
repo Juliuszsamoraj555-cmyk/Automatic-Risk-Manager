@@ -1,16 +1,3 @@
-To świetny kierunek. Dzięki temu Janek nie czuje się przytłoczony matematyką na start, ale jeśli chce wejść w rolę analityka "Quant", może jednym kliknięciem aktywować zaawansowany model.
-
-Wprowadziłem zmiany tak, aby domyślnie system działał na czystych danych historycznych (tak jak wcześniej), a sekcja Skorygowana symulacja Monte Carlo pojawiała się jako dodatkowa opcja w panelu bocznym.
-
-Co się zmieniło?
-Checkbox "Skorygowana symulacja Monte Carlo": Aktywuje on model CAPM/GBM. Jeśli jest wyłączony, symulacja opiera się na prostym dryfie historycznym.
-
-Inteligentne pobieranie danych: Benchmark (SPY) jest pobierany tylko wtedy, gdy Janek zaznaczy opcję korekty, co przyspiesza działanie standardowej analizy.
-
-Zachowanie wszystkich opisów: Wszystkie dymki pomocy (?) i ostrzeżenia pozostały na swoich miejscach.
-
-Kompletny i Zaktualizowany Kod app.py
-Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
