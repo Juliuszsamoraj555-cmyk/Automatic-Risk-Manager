@@ -31,21 +31,15 @@ st.title("🛡️ Risk Manager Pro")
 with st.sidebar:
     st.header("⚙️ Ustawienia")
     
-    # PRZYWRÓCONA PEŁNA INSTRUKCJA POD ZNAKIEM ZAPYTANIA
     tickers_input = st.text_input(
         "Symbole spółek (ticker):", 
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
         help="""
         **Jak wpisywać symbole?**
-        
         System pobiera dane z Yahoo Finance. 
-        * **USA:** Wpisuj sam ticker (np. `AAPL`, `TSLA`, `MSFT`).
-        * **Polska (GPW):** Dodaj `.WA` (np. `ALE.WA`, `PKO.WA`).
-        * **Niemcy:** Dodaj `.DE` (np. `BMW.DE`).
-        * **Kryptowaluty:** Dodaj `-USD` (np. `BTC-USD`).
-        * **Złoto/Surowce:** Użyj symboli kontraktów (np. `GC=F` dla złota).
-        
-        Wyszukaj ticker na *finance.yahoo.com*, jeśli nie jesteś pewien.
+        * **USA:** Sam ticker (np. `AAPL`).
+        * **Polska:** Dodaj `.WA` (np. `ALE.WA`).
+        * **Krypto:** Dodaj `-USD` (np. `BTC-USD`).
         """
     )
     
@@ -57,24 +51,13 @@ with st.sidebar:
     limit_2x = st.checkbox(
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
-        help="""
-        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza.
-        
-        **W jakim celu?**
-        Zapobiega to tzw. 'dominacji' jednej spółki. Nawet jeśli model uzna jakąś firmę za bardzo bezpieczną, limit ten wymusza rozłożenie kapitału na pozostałe aktywa. Chroni Cię to przed ryzykiem specyficznym – sytuacją, w której jedna firma nagle upada z przyczyn, których nie widać w statystykach.
-        """
+        help="Algorytm pilnuje, aby największa pozycja była max 2x większa od najmniejszej. Chroni to przed dominacją jednej spółki."
     )
     
     run_mc = st.checkbox(
         "Wykonaj symulacje Monte Carlo", 
         value=True,
-        help="""
-        **Co to robi?**
-        System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
-        
-        **Dlaczego to ważne?**
-        Pozwala to zobaczyć pełny wachlarz możliwości – od bardzo optymistycznych po kryzysowe. Dzięki temu realnie ocenisz szansę na stratę oraz zrozumiesz zakres niepewności w inwestowaniu.
-        """
+        help="Przeprowadza 10,000 wirtualnych symulacji przyszłości, aby pokazać zakres możliwych zysków i strat."
     )
     
     st.divider()
@@ -118,15 +101,40 @@ if analizuj:
 
         with tabs[0]:
             st.subheader("Rekomendowana alokacja")
+            
+            # --- DODANO WYJAŚNIENIA DO METRYK ---
             c1, c2, c3 = st.columns(3)
             p_var = (wagi_finalne * monthly_vars).sum()
             mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
             mean_c = corr_matrix.where(mask).stack().mean()
             
-            c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
-            c2.metric("Średnia Korelacja", f"{mean_c:.2f}")
-            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}")
+            c1.metric(
+                "Miesięczny VaR (95%)", 
+                f"{p_var*100:.2f}%",
+                help="""
+                **Value at Risk (Wartość Zagrożona).** Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca Twój portfel straci więcej niż ten procent. 
+                Jest to miara 'normalnego' ryzyka rynkowego w złym scenariuszu.
+                """
+            )
+            c2.metric(
+                "Średnia Korelacja", 
+                f"{mean_c:.2f}",
+                help="""
+                **Powiązanie aktywów.** Określa, jak bardzo spółki poruszają się 'w parze'. 
+                * **Bliżej 0:** Świetna dywersyfikacja (spadki jednych są łagodzone przez wzrosty innych). 
+                * **Powyżej 0.5:** Spółki są mocno powiązane i mogą spadać jednocześnie.
+                """
+            )
+            c3.metric(
+                "Ryzyko (PLN)", 
+                f"{p_var * kwota:,.2f}",
+                help=f"""
+                **Strata w walucie.** To Twój miesięczny VaR przeliczony na konkretną kwotę przy Twoim kapitale (**{kwota:,.0f} PLN**). 
+                W statystycznie najgorszym miesiącu (scenariusz 5%) powinieneś być gotowy na akceptację straty właśnie takiej wysokości.
+                """
+            )
             
+            st.divider()
             df_wynik = pd.DataFrame({
                 'Ticker': monthly_vars.index,
                 'Udział (%)': wagi_finalne * 100,
