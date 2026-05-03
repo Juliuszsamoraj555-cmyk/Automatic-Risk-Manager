@@ -1,3 +1,16 @@
+To świetny kierunek. Dzięki temu Janek nie czuje się przytłoczony matematyką na start, ale jeśli chce wejść w rolę analityka "Quant", może jednym kliknięciem aktywować zaawansowany model.
+
+Wprowadziłem zmiany tak, aby domyślnie system działał na czystych danych historycznych (tak jak wcześniej), a sekcja Skorygowana symulacja Monte Carlo pojawiała się jako dodatkowa opcja w panelu bocznym.
+
+Co się zmieniło?
+Checkbox "Skorygowana symulacja Monte Carlo": Aktywuje on model CAPM/GBM. Jeśli jest wyłączony, symulacja opiera się na prostym dryfie historycznym.
+
+Inteligentne pobieranie danych: Benchmark (SPY) jest pobierany tylko wtedy, gdy Janek zaznaczy opcję korekty, co przyspiesza działanie standardowej analizy.
+
+Zachowanie wszystkich opisów: Wszystkie dymki pomocy (?) i ostrzeżenia pozostały na swoich miejscach.
+
+Kompletny i Zaktualizowany Kod app.py
+Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -9,7 +22,7 @@ import matplotlib.pyplot as plt
 # 1. KONFIGURACJA STRONY
 st.set_page_config(page_title="Automatic Risk Manager Pro", page_icon="🛡️", layout="wide")
 
-# 2. DESIGN CSS
+# 2. DESIGN CSS (SaaS Look)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -36,10 +49,15 @@ with st.sidebar:
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
         help="""
         **Jak wpisywać symbole?**
+        
         System pobiera dane z Yahoo Finance. 
-        * **USA:** Sam ticker (np. `AAPL`).
-        * **Polska:** Dodaj `.WA` (np. `ALE.WA`).
-        * **Krypto:** Dodaj `-USD` (np. `BTC-USD`).
+        * **USA:** Wpisuj sam ticker (np. `AAPL`, `TSLA`, `MSFT`).
+        * **Polska (GPW):** Dodaj `.WA` (np. `ALE.WA`, `PKO.WA`).
+        * **Niemcy:** Dodaj `.DE` (np. `BMW.DE`).
+        * **Kryptowaluty:** Dodaj `-USD` (np. `BTC-USD`).
+        * **Złoto/Surowce:** Użyj symboli kontraktów (np. `GC=F` dla złota).
+        
+        Wyszukaj ticker na *finance.yahoo.com*, jeśli nie jesteś pewien.
         """
     )
     
@@ -53,24 +71,37 @@ with st.sidebar:
         index=0,
         help="""
         **Bezpieczeństwo (VaR):** Skupia się na minimalizacji strat w najgorszych scenariuszach. Wybiera najbardziej stabilne spółki.
+        
         **Efektywność (Sortino):** Szuka najlepszego zysku w stosunku do ryzyka spadków. Docenia spółki, które rosną gwałtownie, ale rzadko zaliczają głębokie 'doły'.
         """
     )
 
     ryzyko = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
     
-    # --- NOWA SEKCJA: PARAMETRY CAPM ---
-    with st.expander("📈 Zaawansowane parametry CAPM/GBM"):
-        rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
-        mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
-        beta_speed = st.slider("Szybkość wygasania Bety:", 0.0, 0.2, 0.05, 
-                               help="Jak szybko Beta spółki dąży do 1.0 (rynku) wraz z upływem lat.")
+    # --- SEKCJA: SKORYGOWANA SYMULACJA MONTE CARLO ---
+    st.divider()
+    adj_mc = st.checkbox(
+        "Skorygowana symulacja Monte Carlo", 
+        value=False,
+        help="Włącza model CAPM (Capital Asset Pricing Model). Zamiast średniej historycznej, symulacja użyje oczekiwanej stopy zwrotu wynikającej z ryzyka rynkowego spółki (Bety)."
+    )
+    
+    if adj_mc:
+        with st.expander("📈 Parametry CAPM/GBM", expanded=True):
+            rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
+            mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
+            beta_speed = st.slider("Szybkość wygasania Bety:", 0.0, 0.2, 0.05, 
+                                   help="Symuluje 'starzenie się' spółki – jej Beta z czasem dąży do 1.0.")
 
+    st.divider()
     limit_2x = st.checkbox(
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
         help="""
-        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza. Zapobiega to dominacji jednej spółki i chroni przed ryzykiem specyficznym.
+        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza.
+        
+        **W jakim celu?**
+        Zapobiega to tzw. 'dominacji' jednej spółki. Nawet jeśli model uzna jakąś firmę za bardzo bezpieczną, limit ten wymusza rozłożenie kapitału na pozostałe aktywa. Chroni Cię to przed **ryzykiem specyficznym** – czyli sytuacją, w której jedna firma nagle upada z przyczyn, których nie widać w statystykach.
         """
     )
     
@@ -94,29 +125,33 @@ if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',')]
     
     try:
-        with st.spinner('📊 Pobieranie danych i obliczanie parametrów CAPM...'):
-            # Pobieramy tickers + SPY jako benchmark
-            all_tickers = tickers + ["SPY"]
-            data_raw = yf.download(all_tickers, period="3y")['Close']
+        with st.spinner('📊 Analizowanie danych rynkowych...'):
+            # Pobieranie danych
+            fetch_tickers = tickers + (["SPY"] if adj_mc else [])
+            data_raw = yf.download(fetch_tickers, period="3y")['Close']
             
             if isinstance(data_raw.columns, pd.MultiIndex):
                 data_raw.columns = data_raw.columns.get_level_values(-1)
             
-            # Oddzielamy benchmark
-            spy_data = data_raw["SPY"]
-            data_raw = data_raw[tickers]
-            
-            df_daily_rets = data_raw.pct_change().dropna()
-            spy_rets = spy_data.pct_change().dropna()
-            
-            # Obliczanie Bety dla każdej spółki
+            # Logika CAPM (tylko jeśli wybrano korektę)
             betas = {}
-            for t in tickers:
-                cov = np.cov(df_daily_rets[t], spy_rets)[0, 1]
-                var = np.var(spy_rets)
-                betas[t] = cov / var
+            if adj_mc:
+                spy_rets = data_raw["SPY"].pct_change().dropna()
+                stock_data = data_raw[tickers]
+                for t in tickers:
+                    t_rets = stock_data[t].pct_change().dropna()
+                    # Synchronizacja dat
+                    combined = pd.concat([t_rets, spy_rets], axis=1).dropna()
+                    cov = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0,1]
+                    var = np.var(combined.iloc[:,1])
+                    betas[t] = cov / var
+                data_only = stock_data
+            else:
+                data_only = data_raw[tickers] if "SPY" in data_raw.columns else data_raw
 
-            df_monthly_rets = data_raw.resample('ME').last().pct_change().dropna()
+            df_daily_rets = data_only.pct_change().dropna()
+            df_monthly_rets = data_only.resample('ME').last().pct_change().dropna()
+            
             monthly_vars = df_monthly_rets.quantile(0.05) * -1
             corr_matrix = df_monthly_rets.corr()
             avg_corr_each = corr_matrix.mean()
@@ -157,62 +192,53 @@ if analizuj:
             c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}", help=f"Szacowana miesięczna strata przy kapitale {kwota:,.0f} PLN.")
             
             st.divider()
-            df_wynik = pd.DataFrame({
-                'Ticker': tickers,
-                'Beta': [betas[t] for t in tickers],
-                'Udział (%)': wagi_finalne * 100,
-                'Kwota': wagi_finalne * kwota
-            }).sort_values(by='Udział (%)', ascending=False)
-            st.dataframe(df_wynik.style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), hide_index=True, use_container_width=True)
+            display_df = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi_finalne * 100, 'Kwota': wagi_finalne * kwota})
+            if adj_mc: display_df['Beta'] = [betas[t] for t in tickers]
+            
+            st.dataframe(display_df.sort_values(by='Udział (%)', ascending=False).style.format({
+                'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'
+            }), hide_index=True, use_container_width=True)
 
         if run_mc:
             with tabs[1]:
                 st.subheader(f"Symulacja Monte Carlo - 10,000 symulacji ({opt_mode})")
-                st.info("**Tryb zaawansowany:** Symulacja wykorzystuje model GBM (Geometric Brownian Motion) skorygowany o CAPM i volatility drag.")
+                st.info(f"**Tryb:** {'Skorygowany (CAPM/GBM)' if adj_mc else 'Standardowy (Historyczny)'}. "
+                        "Symulacja bazuje na zmienności historycznej i statystyce. Wyniki historyczne nie gwarantują przyszłych zysków.")
                 
-                # Przygotowanie parametrów GBM dla portfela
                 n_sims = 10000
                 dt = 1/252
-                
-                # Obliczamy Betę portfela
-                port_beta = np.sum([betas[t] * wagi_finalne[i] for i, t in enumerate(tickers)])
-                
-                # Obliczamy zmienność dzienną (logarytmiczną) i roczną
-                log_returns = np.log(data_raw / data_raw.shift(1)).dropna()
+                log_returns = np.log(data_only / data_only.shift(1)).dropna()
                 cov_matrix = log_returns.cov().values
                 port_sigma_annual = np.sqrt(np.dot(wagi_finalne.T, np.dot(cov_matrix, wagi_finalne))) * np.sqrt(252)
+                
+                if adj_mc:
+                    port_beta = np.sum([betas[t] * wagi_finalne[i] for i, t in enumerate(tickers)])
 
                 col_a, col_b = st.columns(2)
                 plt.style.use("dark_background")
 
                 for i, (years, lbl) in enumerate(zip([5, 10], ["5 Lat", "10 Lat"])):
                     days = years * 252
-                    
-                    # Inicjalizacja ścieżek
                     paths = np.zeros((days, n_sims))
                     current_prices = np.full(n_sims, float(kwota))
                     
-                    # Symulacja krok po kroku (dla mean-reversion bety)
-                    temp_beta = port_beta
-                    for d in range(days):
-                        # 1. CAPM: E(Ri)
-                        expected_return_annual = rf_rate + temp_beta * (mkt_ret - rf_rate)
-                        
-                        # 2. Drift Adjustment: mu_adj = E(Ri) - 0.5 * sigma^2
-                        # Przeliczamy na skalę kroku czasowego dt
-                        mu_adj = (expected_return_annual - 0.5 * (port_sigma_annual**2)) * dt
-                        
-                        # 3. Randomness (epsilon)
-                        epsilon = np.random.normal(0, 1, n_sims)
-                        
-                        # 4. GBM Formula
-                        current_prices *= np.exp(mu_adj + port_sigma_annual * epsilon * np.sqrt(dt))
-                        paths[d, :] = current_prices
-                        
-                        # 5. Beta smoothing (raz na rok symulacji)
-                        if d % 252 == 0:
-                            temp_beta = temp_beta * (1 - beta_speed) + 1.0 * beta_speed
-                    
+                    if adj_mc:
+                        temp_beta = port_beta
+                        for d in range(days):
+                            mu_adj = (rf_rate + temp_beta * (mkt_ret - rf_rate) - 0.5 * (port_sigma_annual**2)) * dt
+                            epsilon = np.random.normal(0, 1, n_sims)
+                            current_prices *= np.exp(mu_adj + port_sigma_annual * epsilon * np.sqrt(dt))
+                            paths[d, :] = current_prices
+                            if d % 252 == 0: temp_beta = temp_beta * (1 - beta_speed) + 1.0 * beta_speed
+                    else:
+                        # Standardowy model (historyczny dryf)
+                        hist_mu = np.sum(df_daily_rets.mean() * wagi_finalne) * 252
+                        mu_adj = (hist_mu - 0.5 * (port_sigma_annual**2)) * dt
+                        for d in range(days):
+                            epsilon = np.random.normal(0, 1, n_sims)
+                            current_prices *= np.exp(mu_adj + port_sigma_annual * epsilon * np.sqrt(dt))
+                            paths[d, :] = current_prices
+
                     final_v = paths[-1, :]
                     mediana = np.median(final_v)
                     stats = {
@@ -241,4 +267,4 @@ if analizuj:
             st.pyplot(fig_c)
 
     except Exception as e:
-        st.error(f"Coś poszło nie tak: {e}")
+        st.error(f"Wystąpił błąd: {e}")
