@@ -1,4 +1,3 @@
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -69,17 +68,15 @@ with st.sidebar:
         """
     )
     
-    # --- GŁÓWNA FUNKCJA MONTE CARLO ---
     run_mc = st.checkbox(
         "Wykonaj symulacje Monte Carlo", 
         value=True,
         help="""
         **Co to robi?**
-        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
+        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące scenariuszy przyszłości dla Twojego portfela.
         """
     )
     
-    # --- PODFUNKCJA: SKORYGOWANA SYMULACJA ---
     adj_mc = False
     if run_mc:
         adj_mc = st.checkbox(
@@ -137,7 +134,9 @@ if analizuj:
             penalty = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko]
             target_w_raw = (1 / (monthly_vars ** penalty)) * (1 - corr_matrix.mean())
         else:
-            sortino = df_monthly_rets.mean() / (df_monthly_rets[df_monthly_rets < 0].std() + 1e-6)
+            mean_ret = df_monthly_rets.mean()
+            downside_std = df_monthly_rets[df_monthly_rets < 0].std()
+            sortino = mean_ret / (downside_std + 1e-6)
             target_w_raw = (sortino.clip(lower=0) ** {'low': 0.5, 'medium': 1.0, 'high': 1.5}[ryzyko]) * (1 - corr_matrix.mean())
 
         target_w = target_w_raw / target_w_raw.sum()
@@ -146,9 +145,7 @@ if analizuj:
         wagi = res.x
 
         # WYNIKI
-        t_names = ["📈 Portfel"]
-        if run_mc: t_names.append("🔮 Symulacja Monte Carlo")
-        t_names.append("🔗 Mapa Korelacji")
+        t_names = ["📈 Portfel", "🔮 Symulacja Monte Carlo", "🔗 Korelacje", "🧠 Metodologia"]
         tabs = st.tabs(t_names)
 
         with tabs[0]:
@@ -211,11 +208,57 @@ if analizuj:
                         st.pyplot(fig)
                 plt.style.use('default')
 
-        with tabs[-1]:
+        with tabs[2]:
             st.subheader("Mapa Korelacji Między Aktywami")
             fig_c, ax_c = plt.subplots(figsize=(12, 8))
             sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
             st.pyplot(fig_c)
+
+        # --- NOWA ZAKŁADKA: METODOLOGIA ---
+        with tabs[3]:
+            st.header("🧠 Metodologia Obliczeń")
+            
+            with st.expander("1. Optymalizacja Wag Portfela", expanded=True):
+                st.markdown("""
+                W zależności od wybranego trybu, algorytm stosuje jedną z dwóch zaawansowanych technik alokacji:
+                
+                **A. Tryb Bezpieczeństwa (VaR-First)**
+                Wagi są wyznaczane na podstawie odwrotności Wartości Zagrożonej (VaR) oraz średniej korelacji spółki z resztą portfela:
+                $$W_i \\propto \\frac{1 - \\bar{\\rho}_i}{VaR_i^p}$$
+                Gdzie:
+                - $VaR_i$: Miesięczna strata historyczna (percentyl 5%).
+                - $\\bar{\\rho}_i$: Średnia korelacja danej spółki z pozostałymi komponentami.
+                - $p$: Parametr profilu ryzyka (Kara za zmienność).
+                
+                **B. Tryb Efektywności (Sortino)**
+                Wagi są optymalizowane pod kątem maksymalizacji stosunku zysku do zmienności ujemnej:
+                $$W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\\rho}_i)$$
+                Model ten premiuje aktywa, które rosną stabilnie, nie karząc ich za gwałtowne skoki cen w górę.
+                """)
+
+            with st.expander("2. Skorygowana Symulacja Monte Carlo (CAPM + GBM)"):
+                st.markdown("""
+                W trybie zaawansowanym stosujemy model **Geometric Brownian Motion (GBM)** zintegrowany z modelem wyceny aktywów kapitałowych (**CAPM**).
+                
+                **Krok 1: Wyznaczenie Oczekiwanej Stopy Zwrotu**
+                Zamiast ufać tylko historii, wyliczamy zwrot na podstawie ryzyka systematycznego (Bety):
+                $$E(R_i) = R_f + \\beta_i \\cdot (E(R_m) - R_f) + \\alpha \\cdot \\text{retention}$$
+                
+                **Krok 2: Korekta o Volatility Drag**
+                W statystyce długoterminowej zmienność obniża medianę kapitału. Korygujemy dryf symulacji o połowę wariancji:
+                $$\\mu_{adj} = E(R_i) - \\frac{1}{2}\\sigma^2$$
+                
+                **Krok 3: Generowanie ścieżek cenowych**
+                Cena w każdym kolejnym kroku czasowym $\\Delta t$ (dziennym) wyliczana jest wzorem:
+                $$P_{t+1} = P_t \\cdot e^{(\\mu_{adj} \\cdot \\Delta t + \\sigma \\cdot \\epsilon \\cdot \\sqrt{\\Delta t})}$$
+                Gdzie $\\epsilon$ jest liczbą losową z rozkładu normalnego $N(0, 1)$.
+                
+                **Krok 4: Mean Reversion Bety**
+                Symulujemy dojrzewanie spółek. Im dłuższy horyzont czasowy, tym Beta portfela szybciej dąży do średniej rynkowej ($1.0$):
+                $$\\beta_{t+1} = \\beta_t \\cdot (1 - \\text{speed}) + 1.0 \\cdot \\text{speed}$$
+                """)
+
+            st.success("Modele matematyczne są aktualizowane dynamicznie na podstawie danych rynkowych z ostatnich 3 lat.")
 
     except Exception as e:
         st.error(f"Błąd: {e}")
