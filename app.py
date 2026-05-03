@@ -35,16 +35,16 @@ with st.sidebar:
         "Symbole spółek (ticker):", 
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
         help="""
-        **Jak wpisywać symbole?**
+        **Instrukcja wprowadzania symboli:**
         
-        System pobiera dane z Yahoo Finance. 
-        * **USA:** Wpisuj sam ticker (np. `AAPL`, `TSLA`, `MSFT`).
-        * **Polska (GPW):** Dodaj `.WA` (np. `ALE.WA`, `PKO.WA`).
-        * **Niemcy:** Dodaj `.DE` (np. `BMW.DE`).
-        * **Kryptowaluty:** Dodaj `-USD` (np. `BTC-USD`).
-        * **Złoto/Surowce:** Użyj symboli kontraktów (np. `GC=F` dla złota).
+        System pobiera dane bezpośrednio z serwerów Yahoo Finance. 
+        * **Rynek USA:** Należy wpisać sam ticker, na przykład AAPL, TSLA lub MSFT.
+        * **Giełda Papierów Wartościowych w Warszawie:** Należy dodać rozszerzenie .WA, na przykład ALE.WA lub PKO.WA.
+        * **Rynek niemiecki:** Należy dodać rozszerzenie .DE, na przykład BMW.DE.
+        * **Kryptowaluty:** Należy dodać przyrostek -USD, na przykład BTC-USD.
+        * **Surowce:** Należy użyć symboli kontraktów terminowych, na przykład GC=F dla złota.
         
-        Wyszukaj ticker na *finance.yahoo.com*, jeśli nie jesteś pewien.
+        Dokładny symbol można zweryfikować na stronie finance.yahoo.com.
         """
     )
     
@@ -56,9 +56,9 @@ with st.sidebar:
         ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
         index=0,
         help="""
-        **Bezpieczeństwo (VaR):** Skupia się na minimalizacji strat w najgorszych scenariuszach. Wybiera najbardziej stabilne spółki.
+        **Bezpieczeństwo (VaR):** Priorytetem jest minimalizacja strat w scenariuszach o niskim prawdopodobieństwie wystąpienia. Model wybiera aktywa o najwyższej stabilności.
         
-        **Efektywność (Sortino):** Szuka najlepszego zysku w stosunku do ryzyka spadków. Docenia spółki, które rosną gwałtownie, ale rzadko zaliczają głębokie 'doły'.
+        **Efektywność (Sortino):** Model dąży do uzyskania najwyższej stopy zwrotu w relacji do ryzyka spadków. Premiuje aktywa o silnym trendzie wzrostowym przy jednoczesnym ograniczaniu zmienności ujemnej.
         """
     )
 
@@ -69,23 +69,22 @@ with st.sidebar:
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
         help="""
-        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza.
+        **Zasada proporcji 2x:** Algorytm zapewnia, że alokacja w największą pozycję portfela nie przekroczy dwukrotności alokacji w pozycję najmniejszą.
         
-        **W jakim celu?**
-        Zapobiega to tzw. 'dominacji' jednej spółki. Nawet jeśli model uzna jakąś firmę za bardzo bezpieczną, limit ten wymusza rozłożenie kapitału na pozostałe aktywa. Chroni Cię to przed **ryzykiem specyficznym** – czyli sytuacją, w której jedna firma nagle upada z przyczyn, których nie widać w statystykach.
+        **Cel stosowania:**
+        Mechanizm ten zapobiega nadmiernej koncentracji kapitału w pojedynczym aktywie. Ogranicza to ryzyko specyficzne, czyli prawdopodobieństwo poniesienia znacznych strat wynikających z nieprzewidzianych zdarzeń dotyczących konkretnego emitenta.
         """
     )
     
-    # GŁÓWNA FUNKCJA MC
     run_mc = st.checkbox(
         "Wykonaj symulacje Monte Carlo", 
         value=True,
         help="""
-        **Co to robi?**
-        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
+        **Metodologia:**
+        Jest to zaawansowana analiza statystyczna. System generuje 10 000 alternatywnych ścieżek cenowych, opierając się na parametrach rozkładu prawdopodobieństwa Twojego portfela.
         
-        **Dlaczego to ważne?**
-        Zamiast jednej linii 'zysku', widzisz cały wachlarz możliwości – od bardzo optymistycznych po kryzysowe. Pozwala to realnie ocenić **szansę na stratę** oraz zrozumieć, jak szeroki jest zakres niepewności w inwestowaniu.
+        **Zastosowanie:**
+        Zamiast prezentacji pojedynczego wyniku, model ukazuje pełny zakres możliwych rezultatów inwestycyjnych. Pozwala to precyzyjnie oszacować prawdopodobieństwo straty oraz zrozumieć skalę niepewności w założonym horyzoncie czasowym.
         """
     )
     
@@ -94,17 +93,17 @@ with st.sidebar:
         adj_mc = st.checkbox(
             "Skorygowana symulacja Monte Carlo", 
             value=False,
-            help="Włącza model CAPM skorygowany o Alfę spółek. Zamiast czystej historii, pozwala uwzględnić przewagę rynkową liderów oraz koryguje wyniki o tzw. 'volatility drag', co czyni prognozę znacznie bardziej realistyczną w horyzoncie wieloletnim."
+            help="Aktywuje model CAPM uwzględniający historyczną Alfę. Model koryguje wyniki o wpływ zmienności na stopę zwrotu, co zwiększa realizm prognozy w długim terminie."
         )
         
         if adj_mc:
-            with st.expander("📈 Parametry CAPM/GBM", expanded=True):
+            with st.expander("📈 Parametry rynkowe CAPM/GBM", expanded=True):
                 rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
                 mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
-                alpha_retention = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30, 
-                                            help="Ile % historycznej przewagi spółki nad rynkiem utrzyma się w symulacji. 0% = wynik rynkowy, 100% = pełna powtórka sukcesu.")
-                beta_speed = st.slider("Szybkość wygasania Bety:", 0.0, 0.2, 0.05, 
-                                       help="Symuluje 'starzenie się' spółki – jej Beta z czasem dąży do 1.0 (rynku).")
+                alpha_retention = st.slider("Utrzymanie Alfy (%):", 0, 100, 30, 
+                                            help="Wartość określająca, jaka część historycznej przewagi spółki nad rynkiem zostanie uwzględniona w prognozie.")
+                beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05, 
+                                       help="Parametr określający tempo, w jakim współczynnik Beta portfela dąży do wartości rynkowej równej 1.0.")
 
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ")
@@ -114,7 +113,7 @@ if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',')]
     
     try:
-        with st.spinner('📊 Analizowanie danych...'):
+        with st.spinner('📊 Obliczanie parametrów portfela...'):
             fetch_tickers = tickers + (["SPY"] if adj_mc else [])
             data_raw = yf.download(fetch_tickers, period="3y")['Close']
             if isinstance(data_raw.columns, pd.MultiIndex):
@@ -154,8 +153,7 @@ if analizuj:
         wagi = res.x
 
         # WYNIKI
-        t_names = ["📈 Portfel", "🔮 Symulacja Monte Carlo", "🔗 Korelacje", "🧠 Metodologia"]
-        tabs = st.tabs(t_names)
+        tabs = st.tabs(["📈 Portfel", "🔮 Symulacja Monte Carlo", "🔗 Korelacje", "🧠 Metodologia"])
 
         with tabs[0]:
             st.subheader(f"Rekomendowana alokacja ({opt_mode})")
@@ -164,19 +162,20 @@ if analizuj:
             c1.metric(
                 "Miesięczny VaR (95%)", 
                 f"{p_var*100:.2f}%", 
-                help="Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca Twój portfel straci więcej niż ten procent. Jest to miara 'normalnego' ryzyka rynkowego w złym scenariuszu."
+                help="Wskaźnik określający, że z prawdopodobieństwem 95% miesięczna strata nie przekroczy wskazanej wartości procentowej w normalnych warunkach rynkowych."
             )
             c2.metric(
                 "Średnia Korelacja", 
                 f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}",
-                help="Określa, jak bardzo spółki poruszają się 'w parze'. Bliżej 0 oznacza świetną dywersyfikację, powyżej 0.5 oznacza, że aktywa są mocno powiązane i mogą spadać jednocześnie."
+                help="Miara statystyczna określająca stopień współzależności ruchów cenowych aktywów. Wartości bliskie zeru wskazują na wysoką dywersyfikację."
             )
             c3.metric(
                 "Ryzyko (PLN)", 
                 f"{p_var * kwota:,.2f}",
-                help=f"To Twój miesięczny VaR przeliczony na konkretną kwotę przy Twoim kapitale ({kwota:,.0f} PLN). W statystycznie najgorszym miesiącu powinieneś być gotowy na akceptację straty właśnie takiej wysokości."
+                help=f"Wartość VaR przeliczona na kwotę pieniężną w relacji do Twojego kapitału początkowego wynoszącego {kwota:,.0f} PLN."
             )
             
+            st.divider()
             df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi * 100, 'Kwota': wagi * kwota})
             if adj_mc: df_out['Beta'] = [betas[t] for t in tickers]
             st.dataframe(df_out.sort_values(by='Udział (%)', ascending=False).style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), hide_index=True, use_container_width=True)
@@ -184,8 +183,7 @@ if analizuj:
         if run_mc:
             with tabs[1]:
                 st.subheader(f"Symulacja Monte Carlo - 10,000 symulacji ({opt_mode})")
-                st.info("""**Ważna informacja:** Symulacja Monte Carlo bazuje na zmienności historycznej i statystyce. 
-                        Pamiętaj, że wyniki historyczne nie są gwarancją przyszłych zysków, a realne warunki rynkowe mogą odbiegać od symulowanych scenariuszy.""")
+                st.info("Symulacja opiera się na analizie statystycznej danych historycznych. Wyniki nie stanowią gwarancji przyszłych stóp zwrotu.")
                 
                 n_sims, dt = 10000, 1/252
                 log_rets = np.log(data_only / data_only.shift(1)).dropna()
@@ -216,12 +214,12 @@ if analizuj:
 
                     final = paths[-1, :]
                     res_df = pd.DataFrame({
-                        "Metryka": ["95. Percentyl", "3. Kwartyl (75%)", "Mediana", "1. Kwartyl (25%)", "5. Percentyl", "Szansa na stratę kapitału", "Średni roczny zwrot (CAGR)"],
+                        "Metryka": ["95. Percentyl", "3. Kwartyl (75%)", "Mediana", "1. Kwartyl (25%)", "5. Percentyl", "Prawdopodobieństwo straty", "CAGR"],
                         "Wartość": [f"{np.percentile(final, 95):,.2f}", f"{np.percentile(final, 75):,.2f}", f"{np.median(final):,.2f}", f"{np.percentile(final, 25):,.2f}", 
                                     f"{np.percentile(final, 5):,.2f}", f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%", f"{((np.median(final) / kwota)**(1/y) - 1)*100:.2f}%"]
                     })
                     with (col_a if i == 0 else col_b):
-                        st.write(f"#### Prognoza {lbl}")
+                        st.write(f"#### Perspektywa {lbl}")
                         st.table(res_df)
                         fig, ax = plt.subplots(figsize=(10, 6))
                         ax.plot(paths[:, :100], color='skyblue', alpha=0.06)
@@ -230,25 +228,25 @@ if analizuj:
                 plt.style.use('default')
 
         with tabs[2]:
-            st.subheader("Mapa Korelacji Między Aktywami")
+            st.subheader("Macierz Korelacji Aktywów")
             fig_c, ax_c = plt.subplots(figsize=(12, 8))
             sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
             st.pyplot(fig_c)
 
         with tabs[3]:
-            st.header("🧠 Metodologia Obliczeń")
-            with st.expander("1. Optymalizacja Wag Portfela", expanded=True):
+            st.header("Metodologia Obliczeń")
+            with st.expander("1. Algorytm Optymalizacji Portfela"):
                 st.markdown("""
-                W zależności od wybranego trybu, algorytm stosuje jedną z dwóch technik alokacji:
-                **A. Tryb Bezpieczeństwa (VaR-First)**: Wagi wyznaczane na podstawie odwrotności Wartości Zagrożonej (VaR) oraz korelacji: $$W_i \\propto \\frac{1 - \\bar{\\rho}_i}{VaR_i^p}$$
-                **B. Tryb Efektywności (Sortino)**: Optymalizacja pod kątem maksymalizacji stosunku zysku do zmienności ujemnej: $$W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\\rho}_i)$$
+                Model stosuje precyzyjne techniki alokacji w zależności od zdefiniowanej strategii:
+                - **Strategia Bezpieczeństwa (VaR)**: Alokacja bazuje na minimalizacji potencjalnej straty maksymalnej przy uwzględnieniu korelacji.
+                - **Strategia Efektywności (Sortino)**: Optymalizacja pod kątem maksymalizacji stopy zwrotu przy jednoczesnej minimalizacji odchylenia ujemnego.
                 """)
-            with st.expander("2. Skorygowana Symulacja Monte Carlo (CAPM + GBM)"):
+            with st.expander("2. Model Symulacji (GBM i CAPM)"):
                 st.markdown("""
-                **Krok 1: Oczekiwana Stopa Zwrotu**: $$E(R_i) = R_f + \\beta_i \\cdot (E(R_m) - R_f) + \\alpha \\cdot \\text{retention}$$
-                **Krok 2: Korekta o Volatility Drag**: $$\\mu_{adj} = E(R_i) - \\frac{1}{2}\\sigma^2$$
-                **Krok 3: Generowanie ścieżek cenowych**: $$P_{t+1} = P_t \\cdot e^{(\\mu_{adj} \\cdot \\Delta t + \\sigma \\cdot \\epsilon \\cdot \\sqrt{\\Delta t})}$$
+                W trybie skorygowanym system wykorzystuje proces **Geometrycznych Ruchów Browna (GBM)** zintegrowany z modelem wyceny aktywów kapitałowych. Model uwzględnia:
+                - **Dryf skorygowany o zmienność**: Redukcja oczekiwanej stopy zwrotu o wpływ wariancji na wyniki długoterminowe.
+                - **Konwergencję współczynnika Beta**: Proces stopniowego dostosowania ryzyka systematycznego portfela do średniej rynkowej.
                 """)
 
     except Exception as e:
-        st.error(f"Błąd: {e}")
+        st.error(f"Wystąpił błąd podczas przetwarzania danych: {e}")
