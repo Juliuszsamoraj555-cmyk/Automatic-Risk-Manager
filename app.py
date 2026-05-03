@@ -1,9 +1,3 @@
-To genialne uzupełnienie! Takie opisy sprawiają, że Twoje narzędzie przestaje być "czarną skrzynką" i zaczyna realnie edukować Janka. Dzięki temu klient nie tylko dostaje gotowy wynik, ale też rozumie logikę, która za nim stoi – a to buduje ogromne zaufanie do Ciebie jako autora.
-
-Dodałem parametry help do obu checkboxów, używając czytelnego formatowania Markdown (pogrubienia, wypunktowania), aby tekst był przejrzysty.
-
-Zaktualizowany i kompletny kod app.py
-Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
