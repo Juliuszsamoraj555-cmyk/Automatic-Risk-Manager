@@ -8,6 +8,11 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 
+# --- OPTYMALIZACJA 1: CACHE DATA ---
+@st.cache_data(ttl=3600)
+def get_data_cached(tickers_tuple):
+    return yf.download(list(tickers_tuple), period="3y")['Close']
+
 # 1. KONFIGURACJA STRONY
 try:
     v_alpha_icon = Image.open('image_8.png')
@@ -15,7 +20,7 @@ try:
 except:
     st.set_page_config(page_title="Valpha Portfolio Manager", layout="wide")
 
-# 2. DESIGN CSS (SaaS Tech Look - Bez emoji)
+# 2. DESIGN CSS
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -37,7 +42,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. PEŁNY DISCLAIMER PRAWNY (BEZ SKRÓTÓW)
+# 3. PEŁNY DISCLAIMER PRAWNY
 st.markdown("""
     <div class="disclaimer-red">
         <strong>WAŻNE INFORMACJE PRAWNE ORAZ ZASTRZEŻENIA</strong><br>
@@ -113,7 +118,7 @@ with st.sidebar:
         "Wykonaj symulacje Monte Carlo", 
         value=True,
         help="""
-        **Co to robi?** System przeprowadza 10 000 wirtualnych symulacji przyszłości dla Twojego portfela. 
+        **Co to robi?** System przeprowadza symulacje wirtualne przyszłości dla Twojego portfela. 
         
         **Zastosowanie:** Zamiast jednej linii zysku, widzisz cały wachlarz możliwości – od skrajnie pesymistycznych po bardzo optymistyczne. Pozwala to realnie zrozumieć statystyczne prawdopodobieństwo straty kapitału w czasie.
         """
@@ -151,7 +156,9 @@ if analizuj:
         try:
             with st.spinner('Pobieranie i analizowanie danych rynkowych...'):
                 fetch_list = tickers + (["SPY"] if adj_mc else [])
-                data = yf.download(fetch_list, period="3y")['Close']
+                # --- OPTYMALIZACJA 1: WYWOŁANIE CACHE ---
+                data = get_data_cached(tuple(fetch_list))
+                
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.get_level_values(-1)
                 
@@ -209,11 +216,12 @@ if analizuj:
 
             if run_mc:
                 with tabs[1]:
-                    st.subheader("Symulacja Monte Carlo - 10,000 symulacji")
+                    # --- OPTYMALIZACJA 2: ZMIANA NA 3000 ---
+                    st.subheader("Symulacja Monte Carlo - 3,000 symulacji")
                     st.info("""**Ważna informacja:** Symulacja bazuje na analizie statystycznej zmienności historycznej. 
                             Wyniki nie stanowią gwarancji przyszłych zysków, a realne warunki rynkowe mogą odbiegać od symulowanych scenariuszy.""")
                     
-                    n_sims, dt = 10000, 1/252
+                    n_sims, dt = 3000, 1/252
                     log_rets = np.log(data_only / data_only.shift(1)).dropna()
                     p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
                     
@@ -251,7 +259,7 @@ if analizuj:
                             st.write(f"#### PERSPEKTYWA: {lbl}")
                             st.table(res_df)
                             fig, ax = plt.subplots(figsize=(10, 6))
-                            ax.plot(paths[:, :100], color='#238636', alpha=0.06)
+                            ax.plot(paths[:, :50], color='#238636', alpha=0.06) # 50 linii dla oszczędności RAM
                             ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
                             st.pyplot(fig)
                     plt.style.use('default')
