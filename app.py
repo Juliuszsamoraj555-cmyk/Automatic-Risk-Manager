@@ -1,3 +1,9 @@
+Masz absolutną rację. Logicznie rzecz biorąc, nie można „skorygować” symulacji, która w ogóle nie ma się odbyć. Przeniesienie tej opcji jako „dziecko” głównej funkcji Monte Carlo sprawi, że interfejs będzie znacznie bardziej intuicyjny – Janek najpierw decyduje, czy chce prognozę, a dopiero potem wybiera, czy ma być ona standardowa, czy zaawansowana (skorygowana).
+
+Wprowadziłem hierarchię w panelu bocznym: opcje CAPM i suwak Alfy pojawiają się teraz tylko wtedy, gdy zaznaczone jest „Wykonaj symulacje Monte Carlo”.
+
+Kompletny Kod app.py (Wersja z hierarchią logiczną)
+Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -59,22 +65,6 @@ with st.sidebar:
     ryzyko = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
     
     st.divider()
-    adj_mc = st.checkbox(
-        "Skorygowana symulacja Monte Carlo", 
-        value=False,
-        help="Włącza model CAPM skorygowany o Alfę spółek. Zamiast czystej historii, pozwala uwzględnić przewagę rynkową liderów."
-    )
-    
-    if adj_mc:
-        with st.expander("📈 Skorygowana symulacja Monte Carlo", expanded=True):
-            rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
-            mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
-            alpha_retention = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30, 
-                                        help="Ile % historycznej przewagi spółki nad rynkiem utrzyma się w symulacji.")
-            beta_speed = st.slider("Szybkość wygasania Bety:", 0.0, 0.2, 0.05, 
-                                   help="Symuluje 'starzenie się' spółki – jej Beta z czasem dąży do 1.0.")
-
-    st.divider()
     limit_2x = st.checkbox(
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
@@ -84,6 +74,7 @@ with st.sidebar:
         """
     )
     
+    # --- GŁÓWNA FUNKCJA MONTE CARLO ---
     run_mc = st.checkbox(
         "Wykonaj symulacje Monte Carlo", 
         value=True,
@@ -93,6 +84,24 @@ with st.sidebar:
         """
     )
     
+    # --- PODFUNKCJA: SKORYGOWANA SYMULACJA ---
+    adj_mc = False
+    if run_mc:
+        adj_mc = st.checkbox(
+            "Skorygowana symulacja Monte Carlo", 
+            value=False,
+            help="Włącza model CAPM skorygowany o Alfę spółek. Zamiast czystej historii, pozwala uwzględnić przewagę rynkową liderów."
+        )
+        
+        if adj_mc:
+            with st.expander("📈 Parametry CAPM/GBM", expanded=True):
+                rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
+                mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
+                alpha_retention = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30, 
+                                            help="Ile % historycznej przewagi spółki nad rynkiem utrzyma się w symulacji.")
+                beta_speed = st.slider("Szybkość wygasania Bety:", 0.0, 0.2, 0.05, 
+                                       help="Symuluje 'starzenie się' spółki – jej Beta z czasem dąży do 1.0.")
+
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ")
 
@@ -142,7 +151,9 @@ if analizuj:
         wagi = res.x
 
         # WYNIKI
-        t_names = ["📈 Portfel", "🔮 Symulacja Monte Carlo", "🔗 Mapa Korelacji"]
+        t_names = ["📈 Portfel"]
+        if run_mc: t_names.append("🔮 Symulacja Monte Carlo")
+        t_names.append("🔗 Mapa Korelacji")
         tabs = st.tabs(t_names)
 
         with tabs[0]:
@@ -151,16 +162,17 @@ if analizuj:
             p_var = (wagi * monthly_vars).sum()
             c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%", help="Statystyczna miara ryzyka straty miesięcznej.")
             c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
-            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}")
+            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}", help=f"Szacowana miesięczna strata przy kapitale {kwota:,.0f} PLN.")
             
             df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi * 100, 'Kwota': wagi * kwota})
             if adj_mc: df_out['Beta'] = [betas[t] for t in tickers]
-            st.dataframe(df_out.sort_values(by='Udział (%)', ascending=False).style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), hide_index=True)
+            st.dataframe(df_out.sort_values(by='Udział (%)', ascending=False).style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), hide_index=True, use_container_width=True)
 
         if run_mc:
             with tabs[1]:
                 st.subheader(f"Symulacja Monte Carlo - 10,000 symulacji ({opt_mode})")
-                st.info(f"Tryb: {'Skorygowany (CAPM/Alfa)' if adj_mc else 'Standardowy'}. Dane historyczne nie gwarantują przyszłych zysków.")
+                st.info("""**Ważna informacja:** Symulacja Monte Carlo bazuje na zmienności historycznej i statystyce. 
+                        Pamiętaj, że wyniki historyczne nie są gwarancją przyszłych zysków.""")
                 
                 n_sims, dt = 10000, 1/252
                 log_rets = np.log(data_only / data_only.shift(1)).dropna()
@@ -190,11 +202,10 @@ if analizuj:
                             paths[d, :] = curr
 
                     final = paths[-1, :]
-                    med = np.median(final)
                     res_df = pd.DataFrame({
                         "Metryka": ["95. Percentyl", "3. Kwartyl (75%)", "Mediana", "1. Kwartyl (25%)", "5. Percentyl", "Szansa na stratę", "Zwrot (CAGR)"],
-                        "Wartość": [f"{np.percentile(final, 95):,.2f}", f"{np.percentile(final, 75):,.2f}", f"{med:,.2f}", f"{np.percentile(final, 25):,.2f}", 
-                                    f"{np.percentile(final, 5):,.2f}", f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%", f"{((med / kwota)**(1/y) - 1)*100:.2f}%"]
+                        "Wartość": [f"{np.percentile(final, 95):,.2f}", f"{np.percentile(final, 75):,.2f}", f"{np.median(final):,.2f}", f"{np.percentile(final, 25):,.2f}", 
+                                    f"{np.percentile(final, 5):,.2f}", f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%", f"{((np.median(final) / kwota)**(1/y) - 1)*100:.2f}%"]
                     })
                     with (col_a if i == 0 else col_b):
                         st.write(f"#### Prognoza {lbl}")
@@ -205,7 +216,7 @@ if analizuj:
                         st.pyplot(fig)
                 plt.style.use('default')
 
-        with tabs[2]:
+        with tabs[-1]:
             st.subheader("Mapa Korelacji Między Aktywami")
             fig_c, ax_c = plt.subplots(figsize=(12, 8))
             sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
