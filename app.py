@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# 1. KONFIGURACJA STRONY
+# 1. KONFIGURACJA STRONY (Musi być pierwsza!)
 st.set_page_config(page_title="Automatic Risk Manager Pro", page_icon="🛡️", layout="wide")
 
 # 2. DESIGN CSS (SaaS Look)
@@ -36,11 +36,15 @@ with st.sidebar:
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
         help="""
         **Jak wpisywać symbole?**
+        
         System pobiera dane z Yahoo Finance. 
-        * **USA:** Sam ticker (np. `AAPL`).
-        * **Polska:** Dodaj `.WA` (np. `ALE.WA`).
+        * **USA:** Wpisuj sam ticker (np. `AAPL`, `TSLA`, `MSFT`).
+        * **Polska (GPW):** Dodaj `.WA` (np. `ALE.WA`, `PKO.WA`).
         * **Niemcy:** Dodaj `.DE` (np. `BMW.DE`).
         * **Kryptowaluty:** Dodaj `-USD` (np. `BTC-USD`).
+        * **Złoto/Surowce:** Użyj symboli kontraktów (np. `GC=F` dla złota).
+        
+        Wyszukaj ticker na *finance.yahoo.com*, jeśli nie jesteś pewien.
         """
     )
     
@@ -54,6 +58,7 @@ with st.sidebar:
         index=0,
         help="""
         **Bezpieczeństwo (VaR):** Skupia się na minimalizacji strat w najgorszych scenariuszach. Wybiera najbardziej stabilne spółki.
+        
         **Efektywność (Sortino):** Szuka najlepszego zysku w stosunku do ryzyka spadków. Docenia spółki, które rosną gwałtownie, ale rzadko zaliczają głębokie 'doły'.
         """
     )
@@ -64,7 +69,10 @@ with st.sidebar:
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
         help="""
-        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja była max 2x większa od najmniejszej. Zapobiega to dominacji jednej spółki i chroni przed ryzykiem specyficznym.
+        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza.
+        
+        **W jakim celu?**
+        Zapobiega to tzw. 'dominacji' jednej spółki. Nawet jeśli model uzna jakąś firmę za bardzo bezpieczną, limit ten wymusza rozłożenie kapitału na pozostałe aktywa. Chroni Cię to przed **ryzykiem specyficznym** – czyli sytuacją, w której jedna firma nagle upada z przyczyn, których nie widać w statystykach.
         """
     )
     
@@ -72,7 +80,11 @@ with st.sidebar:
         "Wykonaj symulacje Monte Carlo", 
         value=True,
         help="""
-        System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące scenariuszy przyszłości. Pozwala to ocenić szansę na stratę oraz zrozumieć zakres niepewności.
+        **Co to robi?**
+        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
+        
+        **Dlaczego to ważne?**
+        Zamiast jednej linii 'zysku', widzisz cały wachlarz możliwości – od bardzo optymistycznych po kryzysowe. Pozwala to realnie ocenić **szansę na stratę** oraz zrozumieć, jak szeroki jest zakres niepewności w inwestowaniu.
         """
     )
     
@@ -96,7 +108,7 @@ if analizuj:
             corr_matrix = df_monthly_rets.corr()
             avg_corr_each = corr_matrix.mean()
 
-        # SILNIK OPTYMALIZACJI
+        # --- SILNIK OPTYMALIZACJI ---
         if opt_mode == "Bezpieczeństwo (VaR-First)":
             penalty = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko]
             target_w_raw = (1 / (monthly_vars ** penalty)) * (1 - avg_corr_each)
@@ -130,9 +142,21 @@ if analizuj:
             mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
             mean_c = corr_matrix.where(mask).stack().mean()
             
-            c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%", help="Statystyczna miara ryzyka straty miesięcznej.")
-            c2.metric("Średnia Korelacja", f"{mean_c:.2f}", help="Mierzy jak bardzo aktywa poruszają się w tym samym kierunku.")
-            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}", help=f"Szacowana miesięczna strata przy kapitale {kwota:,.0f} PLN.")
+            c1.metric(
+                "Miesięczny VaR (95%)", 
+                f"{p_var*100:.2f}%",
+                help="Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca Twój portfel straci więcej niż ten procent. Jest to miara 'normalnego' ryzyka rynkowego w złym scenariuszu."
+            )
+            c2.metric(
+                "Średnia Korelacja", 
+                f"{mean_c:.2f}",
+                help="Określa, jak bardzo spółki poruszają się 'w parze'. Bliżej 0 oznacza świetną dywersyfikację, powyżej 0.5 oznacza, że aktywa są mocno powiązane i mogą spadać jednocześnie."
+            )
+            c3.metric(
+                "Ryzyko (PLN)", 
+                f"{p_var * kwota:,.2f}",
+                help=f"To Twój miesięczny VaR przeliczony na konkretną kwotę przy Twoim kapitale ({kwota:,.0f} PLN). W statystycznie najgorszym miesiącu (scenariusz 5%) powinieneś być gotowy na akceptację straty właśnie takiej wysokości."
+            )
             
             st.divider()
             df_wynik = pd.DataFrame({
@@ -159,7 +183,7 @@ if analizuj:
                     sim_paths = kwota * np.cumprod(1 + sim_rets, axis=0)
                     final_v = sim_paths[-1, :]
                     
-                    # OBLICZENIA NOWYCH METRYK
+                    # Obliczenia statystyk
                     mediana = np.median(final_v)
                     p95 = np.percentile(final_v, 95)
                     q3 = np.percentile(final_v, 75)
@@ -170,20 +194,21 @@ if analizuj:
                     
                     with (col_a if i == 0 else col_b):
                         st.write(f"#### Prognoza {lbl}")
+                        # --- POPRAWIONA I POSEGREGOWANA TABELA ---
                         st.table(pd.DataFrame({
                             "Metryka": [
-                                "Mediana (Scenariusz bazowy)", 
-                                "95% Optymizm (Hossa)", 
-                                "3. Kwartyl (75% szans na mniej niż)", 
-                                "1. Kwartyl (25% szans na mniej niż)", 
-                                "5% Pesymizm (Bessa)", 
+                                "95. Percentyl", 
+                                "3. Kwartyl (75%)", 
+                                "Mediana", 
+                                "1. Kwartyl (25%)", 
+                                "5. Percentyl", 
                                 "Szansa na stratę kapitału",
                                 "Średni roczny zwrot (CAGR)"
                             ],
                             "Wartość": [
-                                f"{mediana:,.2f}", 
                                 f"{p95:,.2f}", 
                                 f"{q3:,.2f}", 
+                                f"{mediana:,.2f}", 
                                 f"{q1:,.2f}", 
                                 f"{p5:,.2f}", 
                                 f"{chance_loss:.1f}%",
