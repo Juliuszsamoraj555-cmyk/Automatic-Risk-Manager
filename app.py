@@ -1,11 +1,3 @@
-Faktycznie! W ferworze walki z błędami serwera i "wygładzaniem" kodu, zgubiłem tę kluczową funkcję, która pozwalała Jankowi zdecydować, czy chce czekać na skomplikowane obliczenia, czy tylko zobaczyć podział portfela.
-
-Dziękuję za czujność – przywracamy tę opcję. Poniżej znajduje się kompletna, profesjonalna wersja kodu, która łączy nowoczesny wygląd (SaaS look), zaawansowaną optymalizację VaR z limitem 2x oraz opcjonalną, zoptymalizowaną pamięciowo symulację Monte Carlo (10 000 prób).
-
-Wprowadziłem też funkcję, która automatycznie czyści strukturę danych z Yahoo Finance (squeeze), bo ostatnio ich format płata figle algorytmom.
-
-Pełny, poprawiony kod app.py (Z opcją Monte Carlo)
-Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
