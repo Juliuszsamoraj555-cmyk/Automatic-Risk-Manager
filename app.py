@@ -14,16 +14,14 @@ try:
     st.set_page_config(page_title="Risk Manager Pro", page_icon=v_alpha_icon, layout="wide")
 except:
     st.set_page_config(page_title="Risk Manager Pro", layout="wide")
-    st.error("Błąd: Nie znaleziono pliku logo 'image_8.png'. Upewnij się, że plik graficzny jest w głównym katalogu na GitHubie.")
 
-# 2. DESIGN CSS (SaaS Tech Look)
+# 2. CSS - PROFESJONALNY TECH LOOK (BRAK EMOJI)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #0d1117; }
     div[data-testid="stMetric"] {
         background-color: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     [data-testid="stSidebar"] { background-color: #0d1117; border-right: 1px solid #30363d; }
     .stButton > button {
@@ -31,16 +29,16 @@ st.markdown("""
         border-radius: 8px; font-weight: 700; height: 3.5em; border: none;
         text-transform: uppercase; letter-spacing: 1px;
     }
-    .disclaimer-box {
+    .disclaimer-red {
         background-color: #1c2128; border-left: 5px solid #d73a49; padding: 15px;
         border-radius: 8px; margin-bottom: 25px; font-size: 0.85em; color: #adbac7;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. NOTA PRAWNA
+# 3. GŁÓWNY DISCLAIMER PRAWNY
 st.markdown("""
-    <div class="disclaimer-box">
+    <div class="disclaimer-red">
         <strong>WAŻNE INFORMACJE PRAWNE</strong><br>
         Niniejsza aplikacja ma charakter wyłącznie informacyjny oraz edukacyjny i nie stanowi rekomendacji inwestycyjnej ani porady finansowej w rozumieniu przepisów prawa. 
         Inwestowanie na rynkach kapitałowych wiąże się z ryzykiem utraty części lub całości kapitału. Autor narzędzia nie ponosi odpowiedzialności za decyzje inwestycyjne podjęte 
@@ -48,17 +46,17 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# 4. SIDEBAR - SUBSKRYPCJA I KONFIGURACJA
+# 4. SIDEBAR - LOGIKA PRO / FREE
 with st.sidebar:
     try:
-        st.image(v_alpha_icon, width=80)
+        st.image(v_alpha_icon, width=100)
     except:
         pass
     st.title("RISK MANAGER PRO")
     
     st.subheader("STATUS SUBSKRYPCJI")
     license_key = st.text_input("Klucz licencyjny PRO:", type="password")
-    is_pro = (license_key == "PRO2024") # Twój klucz dostępu
+    is_pro = (license_key == "PRO2024")
     
     if is_pro:
         st.success("WERSJA PRO AKTYWNA")
@@ -71,7 +69,7 @@ with st.sidebar:
     tickers_input = st.text_input(
         "Symbole spółek (ticker):", 
         "AAPL, MSFT, NVDA, TSLA, AMZN",
-        help="Wpisuj symbole oddzielone przecinkiem. Giełda Polska: .WA, USA: sam ticker."
+        help="Wpisz symbole oddzielone przecinkiem (np. AAPL, ALE.WA dla GPW)."
     )
     
     kwota = st.number_input("Kapitał początkowy (PLN):", value=25000, step=1000)
@@ -80,11 +78,10 @@ with st.sidebar:
     opt_mode = st.radio(
         "Model Optymalizacji:",
         ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
-        help="VaR skupia się na stabilności. Sortino szuka zysku przy ograniczaniu spadków."
+        help="Wybierz priorytet: minimalizacja ryzyka (VaR) lub maksymalizacja stopy zwrotu do ryzyka spadków (Sortino)."
     )
     
     ryzyko_val = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
-    
     limit_2x = st.checkbox("Wymuś dywersyfikację (Limit 2x)", value=True)
     
     run_mc = st.checkbox("Wykonaj symulacje Monte Carlo", value=True)
@@ -92,13 +89,12 @@ with st.sidebar:
     adj_mc = False
     if run_mc:
         label_adj = "Skorygowana symulacja Monte Carlo"
-        if not is_pro:
-            label_adj += " (Dostępne w PRO)"
+        if not is_pro: label_adj += " (Dostępne w PRO)"
         
         adj_mc = st.checkbox(label_adj, value=False, disabled=not is_pro)
         
         if adj_mc and is_pro:
-            with st.expander("PARAMETRY CAPM / GBM", expanded=True):
+            with st.expander("PARAMETRY RYNKOWE CAPM / GBM", expanded=True):
                 rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
                 mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
                 alpha_ret = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30)
@@ -107,19 +103,16 @@ with st.sidebar:
     st.divider()
     analizuj = st.button("URUCHOM ANALIZĘ SYSTEMOWĄ")
 
-# 5. LOGIKA ANALIZY
+# 5. PRZETWARZANIE DANYCH I OBLICZENIA
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     
-    # Walidacja PRO/FREE
-    can_proceed = True
+    # Blokada limitów FREE
     if not is_pro and len(tickers) > 5:
-        st.error(f"Wykryto {len(tickers)} spółek. Wersja darmowa obsługuje maksymalnie 5. Aktywuj wersję PRO.")
-        can_proceed = False
-    
-    if can_proceed:
+        st.error(f"Wykryto {len(tickers)} spółek. Wersja darmowa obsługuje maksymalnie 5.")
+    else:
         try:
-            with st.spinner('Pobieranie i przetwarzanie danych...'):
+            with st.spinner('Pobieranie danych rynkowych...'):
                 fetch_list = tickers + (["SPY"] if adj_mc else [])
                 data = yf.download(fetch_list, period="3y")['Close']
                 if isinstance(data.columns, pd.MultiIndex):
@@ -146,7 +139,7 @@ if analizuj:
                 monthly_vars = monthly_rets.quantile(0.05) * -1
                 corr_matrix = monthly_rets.corr()
 
-            # Optymalizacja
+            # Optymalizacja wag
             if opt_mode == "Bezpieczeństwo (VaR-First)":
                 p = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko_val]
                 target_w_raw = (1 / (monthly_vars ** p)) * (1 - corr_matrix.mean())
@@ -161,11 +154,11 @@ if analizuj:
                            ([{'type': 'ineq', 'fun': lambda w: 2 * np.min(w) - np.max(w)}] if limit_2x else []))
             wagi = res.x
 
-            # TABS
-            tabs = st.tabs(["STRUKTURA PORTFELA", "SYMULACJA MONTE CARLO", "KORELACJE", "METODOLOGIA"])
+            # WYŚWIETLANIE WYNIKÓW
+            tabs = st.tabs(["Struktura Portfela", "Symulacja Monte Carlo", "Korelacje", "Metodologia"])
 
             with tabs[0]:
-                st.subheader(f"REKOMENDOWANA ALOKACJA: {opt_mode.upper()}")
+                st.subheader(f"Rekomendowana alokacja ({opt_mode})")
                 c1, c2, c3 = st.columns(3)
                 p_var = (wagi * monthly_vars).sum()
                 c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
@@ -178,8 +171,8 @@ if analizuj:
 
             if run_mc:
                 with tabs[1]:
-                    st.subheader("SYMULACJA MONTE CARLO (10,000 ŚCIEŻEK)")
-                    st.info("Symulacja wykorzystuje model Geometric Brownian Motion (GBM).")
+                    st.subheader("Symulacja Monte Carlo - 10,000 symulacji")
+                    st.info("Symulacja Monte Carlo bazuje na danych historycznych i statystyce. Wyniki nie stanowią gwarancji przyszłych stóp zwrotu.")
                     
                     n_sims, dt = 10000, 1/252
                     log_rets = np.log(data_only / data_only.shift(1)).dropna()
@@ -188,7 +181,7 @@ if analizuj:
                     col_a, col_b = st.columns(2)
                     plt.style.use("dark_background")
 
-                    for i, (y, lbl) in enumerate(zip([5, 10], ["5 LAT", "10 LAT"])):
+                    for i, (y, lbl) in enumerate(zip([5, 10], ["5 Lat", "10 Lat"])):
                         days = y * 252
                         paths = np.zeros((days, n_sims))
                         curr = np.full(n_sims, float(kwota))
@@ -216,30 +209,30 @@ if analizuj:
                                         f"{np.percentile(final, 5):,.2f}", f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%", f"{((med / kwota)**(1/y) - 1)*100:.2f}%"]
                         })
                         with (col_a if i == 0 else col_b):
-                            st.write(f"#### PERSPEKTYWA: {lbl}")
+                            st.write(f"#### Perspektywa {lbl}")
                             st.table(res_df)
-                            fig, ax = plt.subplots()
+                            fig, ax = plt.subplots(figsize=(10, 6))
                             ax.plot(paths[:, :100], color='#238636', alpha=0.06)
                             ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
                             st.pyplot(fig)
                     plt.style.use('default')
 
             with tabs[2]:
-                st.subheader("MACIERZ KORELACJI AKTYWÓW")
+                st.subheader("Macierz korelacji między aktywami")
                 fig_c, ax_c = plt.subplots(figsize=(10, 8))
                 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
                 st.pyplot(fig_c)
 
             with tabs[3]:
-                st.header("🧠 METODOLOGIA OBLICZEŃ")
-                with st.expander("1. OPTYMALIZACJA PORTFELA", expanded=True):
+                st.header("Metodologia obliczeń")
+                with st.expander("1. Optymalizacja Portfela", expanded=True):
                     st.markdown("""
                     **Model VaR-First**: Alokacja odwrotnie proporcjonalna do ryzyka i korelacji:
                     $$W_i \\propto \\frac{1 - \\bar{\\rho}_i}{VaR_i^p}$$
                     **Model Sortino**: Maksymalizacja zysku w stosunku do zmienności spadkowej:
                     $$W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\\rho}_i)$$
                     """)
-                with st.expander("2. SYMULACJA MONTE CARLO (GBM + CAPM)"):
+                with st.expander("2. Symulacja Monte Carlo (GBM + CAPM)"):
                     st.markdown("""
                     **Oczekiwana Stopa Zwrotu (CAPM + Alfa)**:
                     $$E(R_i) = R_f + \\beta_i(E(R_m) - R_f) + \\alpha_{adj}$$
