@@ -1,9 +1,3 @@
-Rozumiem, estetyka "emojizowana" nie każdemu pasuje, szczególnie w profesjonalnym narzędziu finansowym. Zmieniłem oprawę graficzną na bardziej surową, minimalistyczną i techniczną. Usunąłem kolorowe ikonki z nagłówków, kart oraz przycisków, zastępując je czystym tekstem lub subtelnymi symbolami typograficznymi, które lepiej korelują z analitycznym charakterem aplikacji.
-
-Logika, wzory oraz wszystkie wypracowane przez nas opisy pozostały nienaruszone.
-
-Kompletny Kod app.py (Wersja Minimalistyczna)
-Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
