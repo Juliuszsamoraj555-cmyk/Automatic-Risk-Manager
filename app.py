@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # 1. KONFIGURACJA STRONY
 st.set_page_config(page_title="Automatic Risk Manager Pro", page_icon="🛡️", layout="wide")
 
-# 2. DESIGN CSS
+# 2. DESIGN CSS (SaaS Look)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -26,7 +26,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. SIDEBAR
+# 3. SIDEBAR (Przywrócone Pełne Opisy)
 st.title("🛡️ Risk Manager Pro")
 with st.sidebar:
     st.header("⚙️ Ustawienia")
@@ -36,10 +36,15 @@ with st.sidebar:
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
         help="""
         **Jak wpisywać symbole?**
+        
         System pobiera dane z Yahoo Finance. 
-        * **USA:** Sam ticker (np. `AAPL`).
-        * **Polska:** Dodaj `.WA` (np. `ALE.WA`).
-        * **Krypto:** Dodaj `-USD` (np. `BTC-USD`).
+        * **USA:** Wpisuj sam ticker (np. `AAPL`, `TSLA`, `MSFT`).
+        * **Polska (GPW):** Dodaj `.WA` (np. `ALE.WA`, `PKO.WA`).
+        * **Niemcy:** Dodaj `.DE` (np. `BMW.DE`).
+        * **Kryptowaluty:** Dodaj `-USD` (np. `BTC-USD`).
+        * **Złoto/Surowce:** Użyj symboli kontraktów (np. `GC=F` dla złota).
+        
+        Wyszukaj ticker na *finance.yahoo.com*, jeśli nie jesteś pewien.
         """
     )
     
@@ -48,16 +53,29 @@ with st.sidebar:
     st.divider()
     ryzyko = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
     
+    # Przywrócony opis limitu 2x
     limit_2x = st.checkbox(
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
-        help="Algorytm pilnuje, aby największa pozycja była max 2x większa od najmniejszej. Chroni to przed dominacją jednej spółki."
+        help="""
+        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza.
+        
+        **W jakim celu?**
+        Zapobiega to tzw. 'dominacji' jednej spółki. Nawet jeśli model uzna jakąś firmę za bardzo bezpieczną, limit ten wymusza rozłożenie kapitału na pozostałe aktywa. Chroni Cię to przed **ryzykiem specyficznym** – czyli sytuacją, w której jedna firma nagle upada z przyczyn, których nie widać w statystykach.
+        """
     )
     
+    # Przywrócony opis Monte Carlo
     run_mc = st.checkbox(
         "Wykonaj symulacje Monte Carlo", 
         value=True,
-        help="Przeprowadza 10,000 wirtualnych symulacji przyszłości, aby pokazać zakres możliwych zysków i strat."
+        help="""
+        **Co to robi?**
+        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
+        
+        **Dlaczego to ważne?**
+        Zamiast jednej linii 'zysku', widzisz cały wachlarz możliwości – od bardzo optymistycznych po kryzysowe. Pozwala to realnie ocenić **szansę na stratę** oraz zrozumieć, jak szeroki jest zakres niepewności w inwestowaniu.
+        """
     )
     
     st.divider()
@@ -101,37 +119,26 @@ if analizuj:
 
         with tabs[0]:
             st.subheader("Rekomendowana alokacja")
-            
-            # --- DODANO WYJAŚNIENIA DO METRYK ---
             c1, c2, c3 = st.columns(3)
             p_var = (wagi_finalne * monthly_vars).sum()
             mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
             mean_c = corr_matrix.where(mask).stack().mean()
             
+            # Nowe wyjaśnienia metryk (zgodnie z poprzednim życzeniem)
             c1.metric(
                 "Miesięczny VaR (95%)", 
                 f"{p_var*100:.2f}%",
-                help="""
-                **Value at Risk (Wartość Zagrożona).** Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca Twój portfel straci więcej niż ten procent. 
-                Jest to miara 'normalnego' ryzyka rynkowego w złym scenariuszu.
-                """
+                help="Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca Twój portfel straci więcej niż ten procent. Jest to miara 'normalnego' ryzyka rynkowego w złym scenariuszu."
             )
             c2.metric(
                 "Średnia Korelacja", 
                 f"{mean_c:.2f}",
-                help="""
-                **Powiązanie aktywów.** Określa, jak bardzo spółki poruszają się 'w parze'. 
-                * **Bliżej 0:** Świetna dywersyfikacja (spadki jednych są łagodzone przez wzrosty innych). 
-                * **Powyżej 0.5:** Spółki są mocno powiązane i mogą spadać jednocześnie.
-                """
+                help="Określa, jak bardzo spółki poruszają się 'w parze'. Bliżej 0 oznacza świetną dywersyfikację, powyżej 0.5 oznacza, że aktywa są mocno powiązane i mogą spadać jednocześnie."
             )
             c3.metric(
                 "Ryzyko (PLN)", 
                 f"{p_var * kwota:,.2f}",
-                help=f"""
-                **Strata w walucie.** To Twój miesięczny VaR przeliczony na konkretną kwotę przy Twoim kapitale (**{kwota:,.0f} PLN**). 
-                W statystycznie najgorszym miesiącu (scenariusz 5%) powinieneś być gotowy na akceptację straty właśnie takiej wysokości.
-                """
+                help=f"To Twój miesięczny VaR przeliczony na konkretną kwotę przy Twoim kapitale ({kwota:,.0f} PLN). W statystycznie najgorszym miesiącu (scenariusz 5%) powinieneś być gotowy na taką stratę."
             )
             
             st.divider()
