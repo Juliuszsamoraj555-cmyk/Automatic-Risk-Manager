@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # 1. KONFIGURACJA STRONY
 st.set_page_config(page_title="Automatic Risk Manager Pro", page_icon="📊", layout="wide")
 
-# 2. DESIGN CSS (Clean & Tech Look)
+# 2. DESIGN CSS (Clean & Tech Look - Minimalistyczny)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -39,11 +39,11 @@ with st.sidebar:
         **Instrukcja wprowadzania symboli:**
         
         System pobiera dane bezpośrednio z serwerów Yahoo Finance. 
-        * **Rynek USA:** Należy wpisać sam ticker, na przykład AAPL, TSLA lub MSFT.
-        * **Giełda Papierów Wartościowych w Warszawie:** Należy dodać rozszerzenie .WA, na przykład ALE.WA lub PKO.WA.
-        * **Rynek niemiecki:** Należy dodać rozszerzenie .DE, na przykład BMW.DE.
-        * **Kryptowaluty:** Należy dodać przyrostek -USD, na przykład BTC-USD.
-        * **Surowce:** Należy użyć symboli kontraktów terminowych, na przykład GC=F dla złota.
+        * **Rynek USA:** Należy wpisać sam ticker (np. AAPL, TSLA).
+        * **Polska (GPW):** Należy dodać rozszerzenie .WA (np. ALE.WA, PKO.WA).
+        * **Rynek niemiecki:** Należy dodać rozszerzenie .DE (np. BMW.DE).
+        * **Kryptowaluty:** Należy dodać przyrostek -USD (np. BTC-USD).
+        * **Surowce:** Należy użyć symboli kontraktów terminowych (np. GC=F dla złota).
         
         Dokładny symbol można zweryfikować na stronie finance.yahoo.com.
         """
@@ -57,7 +57,7 @@ with st.sidebar:
         ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
         index=0,
         help="""
-        **Bezpieczeństwo (VaR):** Priorytetem jest minimalizacja strat w scenariuszach o niskim prawdopodobieństwie wystąpienia. Model wybiera aktywa o najwyższej stabilności.
+        **Bezpieczeństwo (VaR):** Priorytetem jest minimalizacja strat w scenariuszach o niskim prawdopodobieństwie wystąpienia. Model wybiera aktywa o najwyższej stabilności historycznej.
         
         **Efektywność (Sortino):** Model dąży do uzyskania najwyższej stopy zwrotu w relacji do ryzyka spadków. Premiuje aktywa o silnym trendzie wzrostowym przy jednoczesnym ograniczaniu zmienności ujemnej.
         """
@@ -70,10 +70,10 @@ with st.sidebar:
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
         help="""
-        **Zasada proporcji 2x:** Algorytm zapewnia, że alokacja w największą pozycję portfelu nie przekroczy dwukrotności alokacji w pozycję najmniejszą.
+        **Zasada proporcji 2x:** Algorytm zapewnia, że alokacja w największą pozycję portfela nie przekroczy dwukrotności alokacji w pozycję najmniejszą.
         
         **Cel stosowania:**
-        Mechanizm ten zapobiega nadmiernej koncentracji kapitału w pojedynczym aktywie. Ogranicza to ryzyko specyficzne, czyli prawdopodobieństwo poniesienia znacznych strat wynikających z nieprzewidzianych zdarzeń dotyczących konkretnego emitenta.
+        Mechanizm ten zapobiega nadmiernej koncentracji kapitału. Ogranicza to ryzyko specyficznym, czyli prawdopodobieństwo poniesienia znacznych strat wynikających z nieprzewidzianych zdarzeń dotyczących konkretnego emitenta.
         """
     )
     
@@ -82,10 +82,10 @@ with st.sidebar:
         value=True,
         help="""
         **Metodologia:**
-        Jest to zaawansowana analiza statystyczna. System generuje 10 000 alternatywnych ścieżek cenowych, opierając się na parametrach rozkładu prawdopodobieństwa Twojego portfela.
+        System generuje 10 000 alternatywnych ścieżek cenowych, opierając się na parametrach rozkładu prawdopodobieństwa Twojego portfela.
         
         **Zastosowanie:**
-        Zamiast prezentacji pojedynczego wyniku, model ukazuje pełny zakres możliwych rezultatów inwestycyjnych. Pozwala to precyzyjnie oszacować prawdopodobieństwo straty oraz zrozumieć skalę niepewności w założonym horyzoncie czasowym.
+        Pozwala to precyzyjnie oszacować prawdopodobieństwo straty oraz zrozumieć skalę niepewności w założonym horyzoncie czasowym (5 i 10 lat).
         """
     )
     
@@ -94,7 +94,7 @@ with st.sidebar:
         adj_mc = st.checkbox(
             "Skorygowana symulacja Monte Carlo", 
             value=False,
-            help="Aktywuje model CAPM uwzględniający historyczną Alfę. Model koryguje wyniki o wpływ zmienności na stopę zwrotu, co zwiększa realizm prognozy w długim terminie."
+            help="Aktywuje model CAPM uwzględniający historyczną Alfę. Model koryguje wyniki o wpływ zmienności na stopę zwrotu (volatility drag), co zwiększa realizm prognozy rynkowej."
         )
         
         if adj_mc:
@@ -104,7 +104,7 @@ with st.sidebar:
                 alpha_retention = st.slider("Utrzymanie Alfy (%):", 0, 100, 30, 
                                             help="Wartość określająca, jaka część historycznej przewagi spółki nad rynkiem zostanie uwzględniona w prognozie.")
                 beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05, 
-                                       help="Parametr określający tempo, w jakim współczynnik Beta portfela dąży do wartości rynkowej równej 1.0.")
+                                       help="Tempo, w jakim współczynnik Beta portfela dąży do wartości rynkowej równej 1.0.")
 
     st.divider()
     analizuj = st.button("URUCHOM ANALIZĘ SYSTEMOWĄ")
@@ -163,17 +163,17 @@ if analizuj:
             c1.metric(
                 "Miesięczny VaR (95%)", 
                 f"{p_var*100:.2f}%", 
-                help="Wskaźnik określający, że z prawdopodobieństwem 95% miesięczna strata nie przekroczy wskazanej wartości procentowej w normalnych warunkach rynkowych."
+                help="Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca strata przekroczy tę wartość. Jest to miara ryzyka w gorszym scenariuszu rynkowym."
             )
             c2.metric(
                 "Średnia Korelacja", 
                 f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}",
-                help="Miara statystyczna określająca stopień współzależności ruchów cenowych aktywów. Wartości bliskie zeru wskazują na wysoką dywersyfikację."
+                help="Określa stopień powiązania aktywów. Wartości bliskie zeru oznaczają wysoką dywersyfikację i bezpieczeństwo portfela."
             )
             c3.metric(
                 "Ryzyko (PLN)", 
                 f"{p_var * kwota:,.2f}",
-                help=f"Wartość VaR przeliczona na kwotę pieniężną w relacji do Twojego kapitału początkowego wynoszącego {kwota:,.0f} PLN."
+                help=f"Wartość VaR przeliczona na kwotę pieniężną w relacji do Twojego kapitału ({kwota:,.0f} PLN)."
             )
             
             st.divider()
@@ -234,19 +234,42 @@ if analizuj:
             sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
             st.pyplot(fig_c)
 
+        # --- PRZYWRÓCONA PEŁNA METODOLOGIA ---
         with tabs[3]:
             st.header("METODOLOGIA OBLICZEŃ")
-            with st.expander("ALGORYTM OPTYMALIZACJI PORTFELA"):
+            
+            with st.expander("1. OPTYMALIZACJA WAG PORTFELA", expanded=True):
                 st.markdown("""
-                Model stosuje precyzyjne techniki alokacji w zależności od zdefiniowanej strategii:
-                - **Strategia Bezpieczeństwa (VaR)**: Alokacja bazuje na minimalizacji potencjalnej straty maksymalnej przy uwzględnieniu korelacji.
-                - **Strategia Efektywności (Sortino)**: Optymalizacja pod kątem maksymalizacji stopy zwrotu przy jednoczesnej minimalizacji odchylenia ujemnego.
+                Algorytm wyznacza wagi aktywów w oparciu o wybraną strategię oraz macierz korelacji:
+                
+                **A. Tryb Bezpieczeństwa (VaR-First)**
+                Wagi są wyznaczane na podstawie odwrotności Wartości Zagrożonej (VaR) oraz średniej korelacji spółki z resztą portfela:
+                $$W_i \\propto \\frac{1 - \\bar{\\rho}_i}{VaR_i^p}$$
+                
+                **B. Tryb Efektywności (Sortino)**
+                Wagi są optymalizowane pod kątem maksymalizacji stosunku zysku do zmienności ujemnej:
+                $$W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\\rho}_i)$$
                 """)
-            with st.expander("MODEL SYMULACJI (GBM I CAPM)"):
+
+            with st.expander("2. SKORYGOWANA SYMULACJA MONTE CARLO (CAPM + GBM)"):
                 st.markdown("""
-                W trybie skorygowanym system wykorzystuje proces **Geometrycznych Ruchów Browna (GBM)** zintegrowany z modelem wyceny aktywów kapitałowych. Model uwzględnia:
-                - **Dryf skorygowany o zmienność**: Redukcja oczekiwanej stopy zwrotu o wpływ wariancji na wyniki długoterminowe.
-                - **Konwergencję współczynnika Beta**: Proces stopniowego dostosowania ryzyka systematycznego portfela do średniej rynkowej.
+                W trybie skorygowanym stosujemy model **Geometric Brownian Motion (GBM)** zintegrowany z modelem wyceny aktywów kapitałowych (**CAPM**).
+                
+                **Krok 1: Wyznaczenie Oczekiwanej Stopy Zwrotu**
+                Wyliczamy zwrot na podstawie ryzyka systematycznego (Bety) oraz historycznej Alfy:
+                $$E(R_i) = R_f + \\beta_i \\cdot (E(R_m) - R_f) + \\alpha \\cdot \\text{retention}$$
+                
+                **Krok 2: Korekta o Volatility Drag**
+                Zmienność obniża realną medianę kapitału w długim terminie. Dryf symulacji korygujemy o połowę wariancji:
+                $$\\mu_{adj} = E(R_i) - \\frac{1}{2}\\sigma^2$$
+                
+                **Krok 3: Generowanie ścieżek cenowych**
+                Cena w każdym kroku czasowym $\\Delta t$ wyliczana jest wzorem:
+                $$P_{t+1} = P_t \\cdot e^{(\\mu_{adj} \\cdot \\Delta t + \\sigma \\cdot \\epsilon \\cdot \\sqrt{\\Delta t})}$$
+                
+                **Krok 4: Mean Reversion Bety**
+                Model symuluje dojrzewanie spółek – współczynnik Beta dąży do średniej rynkowej (1.0):
+                $$\\beta_{t+1} = \\beta_t \\cdot (1 - \\text{speed}) + 1.0 \\cdot \\text{speed}$$
                 """)
 
     except Exception as e:
