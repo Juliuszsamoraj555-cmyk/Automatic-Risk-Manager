@@ -5,6 +5,45 @@ import numpy as np
 from scipy.optimize import minimize
 import seaborn as sns
 import matplotlib.pyplot as plt
+# --- CUSTOM CSS (Lifting Graficzny) ---
+st.markdown("""
+    <style>
+    /* Główny font i tło */
+    html, body, [class*="css"]  {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Stylizacja bocznego paska */
+    [data-testid="stSidebar"] {
+        background-color: #0e1117;
+        border-right: 1px solid #30363d;
+    }
+
+    /* Stylizacja kart ze statystykami */
+    div[data-testid="metric-container"] {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Przyciski */
+    .stButton>button {
+        width: 100%;
+        border-radius: 5px;
+        height: 3em;
+        background-color: #238636;
+        color: white;
+        border: none;
+    }
+    
+    .stButton>button:hover {
+        background-color: #2ea043;
+        border: none;
+    }
+    </style>
+    """, unsafe_allow_index=True)
 
 # --- Konfiguracja strony ---
 st.set_page_config(page_title="Automatic Risk Manager Pro", layout="wide")
