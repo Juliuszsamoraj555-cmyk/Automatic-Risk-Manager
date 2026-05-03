@@ -1,9 +1,4 @@
-Masz absolutną rację. Logicznie rzecz biorąc, nie można „skorygować” symulacji, która w ogóle nie ma się odbyć. Przeniesienie tej opcji jako „dziecko” głównej funkcji Monte Carlo sprawi, że interfejs będzie znacznie bardziej intuicyjny – Janek najpierw decyduje, czy chce prognozę, a dopiero potem wybiera, czy ma być ona standardowa, czy zaawansowana (skorygowana).
 
-Wprowadziłem hierarchię w panelu bocznym: opcje CAPM i suwak Alfy pojawiają się teraz tylko wtedy, gdy zaznaczone jest „Wykonaj symulacje Monte Carlo”.
-
-Kompletny Kod app.py (Wersja z hierarchią logiczną)
-Python
 import streamlit as st
 import yfinance as yf
 import pandas as pd
