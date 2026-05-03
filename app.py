@@ -5,77 +5,109 @@ import numpy as np
 from scipy.optimize import minimize
 import seaborn as sns
 import matplotlib.pyplot as plt
-# --- CUSTOM CSS (Lifting Graficzny) ---
+
+# --- 1. KONFIGURACJA STRONY ---
+st.set_page_config(
+    page_title="Automatic Risk Manager Pro",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- 2. CUSTOM CSS (Lifting Graficzny) ---
 st.markdown("""
     <style>
-    /* Główny font i tło */
-    html, body, [class*="css"]  {
+    /* Import czcionki Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
-    
+
+    /* Stylizacja kart metryk */
+    div[data-testid="stMetric"] {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
     /* Stylizacja bocznego paska */
     [data-testid="stSidebar"] {
-        background-color: #0e1117;
+        background-color: #0d1117;
         border-right: 1px solid #30363d;
     }
 
-    /* Stylizacja kart ze statystykami */
-    div[data-testid="metric-container"] {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Przyciski */
-    .stButton>button {
+    /* Przycisk Analizy */
+    .stButton > button {
         width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #238636;
-        color: white;
-        border: none;
+        background-color: #238636 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        border: none !important;
+        font-weight: 600 !important;
+        height: 3em !important;
+        transition: 0.3s;
     }
     
-    .stButton>button:hover {
-        background-color: #2ea043;
-        border: none;
+    .stButton > button:hover {
+        background-color: #2ea043 !important;
+        box-shadow: 0 0 15px rgba(46, 160, 67, 0.4);
+    }
+
+    /* Tabele */
+    .stDataFrame {
+        border: 1px solid #30363d;
+        border-radius: 10px;
+    }
+    
+    /* Nagłówki */
+    h1, h2, h3 {
+        color: #e6edf3;
+        font-weight: 700;
     }
     </style>
-    """, unsafe_allow_index=True)
+    """, unsafe_allow_html=True)
 
-# --- Konfiguracja strony ---
-st.set_page_config(page_title="Automatic Risk Manager Pro", layout="wide")
-
+# --- 3. LOGIKA I SIDEBAR ---
 st.title("🛡️ Automatic Risk Manager Pro")
-st.markdown("Profesjonalna optymalizacja portfela i projekcje długoterminowe.")
+st.caption("Inteligentna optymalizacja portfela oparta na algorytmach Value at Risk")
 
-# --- SIDEBAR ---
-st.sidebar.header("Ustawienia Portfela")
-default_tickers = "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD"
-tickers_input = st.sidebar.text_input("Spółki (oddzielone przecinkiem):", default_tickers)
-kwota = st.sidebar.number_input("Kwota inwestycji:", value=25000)
-ryzyko = st.sidebar.select_slider("Poziom Ryzyka:", options=['low', 'medium', 'high'], value='medium')
-limit_2x = st.sidebar.checkbox("Zastosuj limit 2x (Dywersyfikacja)", value=True)
-run_mc = st.sidebar.checkbox("Uruchom Projekcje Długoterminowe", value=True)
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/2534/2534360.png", width=80) # Opcjonalna ikonka
+    st.header("Konfiguracja")
+    
+    default_tickers = "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD"
+    tickers_input = st.text_input("Twoje spółki (ticker):", default_tickers)
+    kwota = st.number_input("Kwota do zainwestowania:", value=25000, min_value=100)
+    
+    st.divider()
+    ryzyko = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
+    limit_2x = st.checkbox("Wymuś dywersyfikację (Limit 2x)", value=True)
+    run_mc = st.checkbox("Symulacje długoterminowe", value=True)
+    
+    analizuj = st.button("URUCHOM ANALIZĘ")
 
-if st.sidebar.button("Analizuj i Optymalizuj"):
+# --- 4. GŁÓWNA LOGIKA APLIKACJI ---
+if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',')]
     
-    with st.spinner('Pobieranie danych...'):
+    with st.spinner('⏳ Agregowanie danych rynkowych...'):
+        # Pobieranie danych
         raw_data = yf.download(tickers, period="3y")['Close']
         daily_returns = raw_data.pct_change().dropna()
         monthly_returns = raw_data.resample('ME').last().pct_change().dropna()
         
-        # Obliczenia ryzyka i korelacji
+        # Statystyki ryzyka
         monthly_vars = monthly_returns.quantile(0.05) * -1
         corr_matrix = monthly_returns.corr()
         avg_corr_each = corr_matrix.mean()
 
-    # --- OPTYMALIZACJA WAG ---
+    # --- OPTYMALIZACJA (Algorytm Risk-First) ---
     risk_map = {'low': 2.0, 'medium': 1.0, 'high': 0.5}
     penalty = risk_map.get(ryzyko)
+    
     target_weights_raw = (1 / (monthly_vars ** penalty)) * (1 - avg_corr_each)
     target_weights = target_weights_raw / target_weights_raw.sum()
 
@@ -89,104 +121,95 @@ if st.sidebar.button("Analizuj i Optymalizuj"):
     res = minimize(objective, target_weights.values, method='SLSQP', bounds=tuple((0.01, 1.0) for _ in tickers), constraints=cons)
     final_weights = res.x
 
-    # --- SEKCJA 1: WYNIKI ALOKACJI ---
-    st.header("📊 Twoja Zoptymalizowana Alokacja")
-    col1, col2 = st.columns([2, 1])
+    # --- 5. INTERFEJS WYNIKÓW (ZAKŁADKI) ---
+    tab1, tab2, tab3 = st.tabs(["📊 Alokacja i Ryzyko", "🔮 Projekcje 5/10 Lat", "🔗 Analiza Powiązań"])
 
-    with col1:
-        wynik_df = pd.DataFrame({
-            'Spółka': monthly_vars.index,
-            'Monthly VaR (5%)': [f"{v*100:.2f}%" for v in monthly_vars],
-            'Procent Portfela': final_weights * 100,
-            'Kwota (Waluta)': final_weights * kwota
-        }).sort_values(by='Procent Portfela', ascending=False)
-        st.dataframe(wynik_df.style.format({'Procent Portfela': '{:.2f}%', 'Kwota (Waluta)': '{:,.2f}'}), 
-                     hide_index=True, use_container_width=True)
-
-    with col2:
-        st.subheader("📉 Statystyki Ryzyka")
+    with tab1:
+        st.subheader("Rekomendowany podział kapitału")
+        
+        # Metryki w kolumnach
+        m1, m2, m3 = st.columns(3)
         portfel_var = (final_weights * monthly_vars).sum()
         mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
-        mean_corr_val = corr_matrix.where(mask).stack().mean()
-        st.metric("Monthly Value At Risk (95%)", f"{portfel_var*100:.2f}%")
-        st.metric("Średnia Korelacja Portfela", f"{mean_corr_val:.2f}")
+        mean_corr = corr_matrix.where(mask).stack().mean()
+        
+        m1.metric("Monthly VaR (95%)", f"{portfel_var*100:.2f}%")
+        m2.metric("Średnia Korelacja", f"{mean_corr:.2f}")
+        m3.metric("Ryzyko w Walucie", f"{portfel_var * kwota:,.2f}")
 
-    # --- SEKCJA 2: MONTE CARLO ---
-    if run_mc:
         st.divider()
-        st.header("🔮 Projekcje Długoterminowe (Monte Carlo)")
         
-        # Macierz Cholesky'ego do korelacji szumu
-        cov_matrix = daily_returns.cov()
-        L = np.linalg.cholesky(cov_matrix)
+        # Tabela alokacji
+        wynik_df = pd.DataFrame({
+            'Ticker': monthly_vars.index,
+            'VaR Spółki': [f"{v*100:.2f}%" for v in monthly_vars],
+            'Udział w Portfelu': final_weights * 100,
+            'Kwota Inwestycji': final_weights * kwota
+        }).sort_values(by='Udział w Portfelu', ascending=False)
         
-        n_sims = 1000
-        years = [5, 10]
-        mean_daily = daily_returns.mean().values
-        
-        # POPRAWIONA FUNKCJA SYMULACJI (bez einsum)
-        def run_sim_paths(n_years):
-            days = n_years * 252
-            Z = np.random.normal(size=(days, n_sims, len(tickers)))
-            # Zastosowanie korelacji: (days, sims, tickers) @ (tickers, tickers)
-            correlated_shocks = Z @ L.T 
-            daily_sim_rets = mean_daily + correlated_shocks
-            # Ważenie zwrotów: (days, sims, tickers) dot (tickers,) -> (days, sims)
-            port_daily_rets = daily_sim_rets @ final_weights
-            return kwota * np.cumprod(1 + port_daily_rets, axis=0)
+        st.dataframe(wynik_df.style.format({'Udział w Portfelu': '{:.2f}%', 'Kwota Inwestycji': '{:,.2f}'}), 
+                     hide_index=True, use_container_width=True)
 
-        # Tabele statystyk
-        c_5y, c_10y = st.columns(2)
-        sim_data = {}
+    with tab2:
+        if run_mc:
+            st.subheader("Projekcje Monte Carlo")
+            st.info("Poniższe wykresy prezentują 100 losowych scenariuszy przebiegu wartości Twojego kapitału.")
+            
+            # Silnik Monte Carlo
+            cov_matrix = daily_returns.cov()
+            L = np.linalg.cholesky(cov_matrix)
+            n_sims = 1000
+            mean_daily = daily_returns.mean().values
+            
+            def run_sim(years):
+                days = years * 252
+                Z = np.random.normal(size=(days, n_sims, len(tickers)))
+                shocks = Z @ L.T 
+                daily_sim_rets = mean_daily + shocks
+                port_rets = daily_sim_rets @ final_weights
+                return kwota * np.cumprod(1 + port_rets, axis=0)
 
-        for i, y in enumerate(years):
-            paths = run_sim_paths(y)
-            sim_data[y] = paths
-            final_vals = paths[-1, :]
+            res_5 = run_sim(5)
+            res_10 = run_sim(10)
             
-            mediana = np.median(final_vals)
-            p95 = np.percentile(final_vals, 95)
-            p5 = np.percentile(final_vals, 5)
-            cagr = (mediana / kwota)**(1/y) - 1
-            chance_loss = (np.sum(final_vals < kwota) / n_sims) * 100
+            # Tabele i Wykresy (Wachlarze)
+            c5, c10 = st.columns(2)
+            plt.style.use("dark_background")
             
-            stats_df = pd.DataFrame({
-                "Metryka": ["Mediana (Scenariusz bazowy)", "95. Percentyl (Optymistyczny)", "5. Percentyl (Pesymistyczny)", "Średnioroczny zwrot (CAGR)", "Szansa na stratę"],
-                "Wartość": [f"{mediana:,.2f}", f"{p95:,.2f}", f"{p5:,.2f}", f"{cagr*100:.2f}%", f"{chance_loss:.1f}%"]
-            })
+            for i, (data, label, years) in enumerate(zip([res_5, res_10], ["5 Lat", "10 Lat"], [5, 10])):
+                final_vals = data[-1, :]
+                mediana = np.median(final_vals)
+                p95, p5 = np.percentile(final_vals, 95), np.percentile(final_vals, 5)
+                cagr = (mediana / kwota)**(1/years) - 1
+                
+                with (c5 if i == 0 else c10):
+                    st.write(f"### Horyzont {label}")
+                    st.table(pd.DataFrame({
+                        "Metryka": ["Mediana", "Scenariusz Optymistyczny", "Scenariusz Pesymistyczny", "Średni zwrot (CAGR)"],
+                        "Wartość": [f"{mediana:,.2f}", f"{p95:,.2f}", f"{p5:,.2f}", f"{cagr*100:.2f}%"]
+                    }))
+                    
+                    # Wykres wachlarzowy
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    sampled = data[:, np.random.choice(n_sims, 100, replace=False)]
+                    ax.plot(sampled, color='skyblue', alpha=0.07, linewidth=0.8)
+                    ax.plot(np.median(data, axis=1), color='white', linewidth=2.5, label='Mediana')
+                    ax.set_ylim(np.percentile(data[-1,:], 1)*0.8, np.percentile(data[-1,:], 99)*1.2)
+                    ax.set_title(f"Wachlarz scenariuszy: {label}")
+                    ax.grid(True, alpha=0.15)
+                    st.pyplot(fig)
             
-            with (c_5y if i == 0 else c_10y):
-                st.subheader(f"📅 Prognoza na {y} lat")
-                st.table(stats_df)
+            plt.style.use('default')
+            st.warning("⚠️ Powyższa analiza oparta jest na danych historycznych. Giełda jest nieprzewidywalna – wyniki symulacji nie gwarantują rzeczywistych zysków.")
 
-        # Wykresy wachlarzowe (zgodnie z Twoim wzorem)
-        st.subheader("💡 Symulacja przebiegu wartości portfela")
-        plt.style.use("dark_background")
-        cp1, cp2 = st.columns(2)
-        
-        for i, y in enumerate(years):
-            fig, ax = plt.subplots(figsize=(10, 5))
-            paths = sim_data[y]
-            # Próbka 100 linii dla czytelności
-            sampled = paths[:, np.random.choice(n_sims, 100, replace=False)]
-            ax.plot(sampled, color='skyblue', alpha=0.05, linewidth=0.5)
-            ax.plot(np.median(paths, axis=1), color='white', linewidth=2, label='Mediana')
-            
-            # Skalowanie osi Y, żeby nie ucinało percentyli
-            ax.set_ylim(np.percentile(paths[-1,:], 1) * 0.8, np.percentile(paths[-1,:], 99) * 1.2)
-            ax.set_title(f"Horyzont {y} lat")
-            ax.grid(True, alpha=0.2)
-            
-            with (cp1 if i == 0 else cp2):
-                st.pyplot(fig)
-        
-        plt.style.use('default')
+    with tab3:
+        st.subheader("Mapa Korelacji Aktywów")
+        st.write("Wizualizacja powiązań między spółkami. Im czerwieńszy kolor, tym większe prawdopodobieństwo, że spółki spadną w tym samym czasie.")
+        fig_corr, ax_corr = plt.subplots(figsize=(12, 6))
+        sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_corr)
+        st.pyplot(fig_corr)
 
-    # --- MAPA KORELACJI ---
-    st.divider()
-    st.subheader("🔗 Mapa Korelacji Aktywów")
-    fig_corr, ax_corr = plt.subplots(figsize=(10, 5))
-    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_corr)
-    st.pyplot(fig_corr)
-
-    st.caption("Powyższa analiza jest symulacją Monte Carlo opartą na danych historycznych. Nie gwarantuje ona zysków w przyszłości.")
+else:
+    # Ekran startowy (zanim Janek kliknie przycisk)
+    st.info("👈 Skonfiguruj swój portfel w panelu bocznym i kliknij 'Analizuj i Optymalizuj', aby zobaczyć magię.")
+    st.image("https://images.unsplash.com/photo-1611974717537-488439d4371f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80", use_container_width=True)
