@@ -53,7 +53,7 @@ with st.sidebar:
         st.image(v_alpha_icon, width=100)
     except:
         pass
-    st.title("RISK MANAGER PRO")
+    st.title("Valpha Portfolio Manager")
     
     st.subheader("STATUS SUBSKRYPCJI")
     license_key = st.text_input("Klucz licencyjny PRO:", type="password", help="Wprowadź swój unikalny klucz, aby odblokować zaawansowane modele Monte Carlo oraz nielimitowaną liczbę spółek w portfelu.")
