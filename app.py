@@ -168,7 +168,14 @@ if analizuj:
 
         if run_mc:
             with tabs[1]:
-                st.subheader(f"Projekcje 10,000 symulacji ({opt_mode})")
+                # --- ZMIENIONY NAGŁÓWEK I DODANA NOTA ---
+                st.subheader(f"Symulacja Monte Carlo - 10,000 symulacji ({opt_mode})")
+                st.info("""
+                    **Ważna informacja:** Symulacja Monte Carlo bazuje na zmienności historycznej i statystyce. 
+                    Pamiętaj, że wyniki historyczne nie są gwarancją przyszłych zysków, a realne warunki rynkowe 
+                    mogą znacząco odbiegać od symulowanych scenariuszy.
+                """)
+                
                 cov_matrix = df_daily_rets.cov()
                 p_mean = np.sum(df_daily_rets.mean() * wagi_finalne)
                 p_std = np.sqrt(np.dot(wagi_finalne.T, np.dot(cov_matrix, wagi_finalne)))
@@ -194,7 +201,6 @@ if analizuj:
                     
                     with (col_a if i == 0 else col_b):
                         st.write(f"#### Prognoza {lbl}")
-                        # --- POPRAWIONA I POSEGREGOWANA TABELA ---
                         st.table(pd.DataFrame({
                             "Metryka": [
                                 "95. Percentyl", 
