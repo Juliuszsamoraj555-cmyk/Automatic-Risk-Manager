@@ -23,8 +23,6 @@ st.markdown("""
         width: 100%; background-color: #238636 !important; color: white !important;
         border-radius: 8px; font-weight: 700; height: 3.5em; border: none;
     }
-    /* Poprawka szerokości tabel */
-    .stTable { width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,7 +34,13 @@ with st.sidebar:
     tickers_input = st.text_input(
         "Symbole spółek (ticker):", 
         "AAPL, MSFT, AMZN, NVDA, TSLA, GOOGL, META, V, JPM, JNJ, WMT, PG, MA, UNH, HD",
-        help="Wpisz symbole oddzielone przecinkiem (np. AAPL, ALE.WA)."
+        help="""
+        **Jak wpisywać symbole?**
+        System pobiera dane z Yahoo Finance. 
+        * **USA:** Sam ticker (np. `AAPL`).
+        * **Polska:** Dodaj `.WA` (np. `ALE.WA`).
+        * **Krypto:** Dodaj `-USD` (np. `BTC-USD`).
+        """
     )
     
     kwota = st.number_input("Kapitał początkowy:", value=25000, step=1000)
@@ -47,32 +51,47 @@ with st.sidebar:
         "Tryb Optymalizacji:",
         ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
         index=0,
-        help="Wybierz priorytet: minimalizacja strat lub najlepszy stosunek zysku do ryzyka spadków."
+        help="""
+        **Bezpieczeństwo (VaR):** Skupia się na minimalizacji strat w najgorszych scenariuszach. Wybiera najbardziej stabilne spółki.
+        **Efektywność (Sortino):** Szuka najlepszego zysku w stosunku do ryzyka spadków. Docenia spółki, które rosną gwałtownie, ale rzadko zaliczają głębokie 'doły'.
+        """
     )
 
     ryzyko = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
     
+    # --- SKORYGOWANA SYMULACJA Z POPRAWKĄ NA "SENS" ---
     st.divider()
     adj_mc = st.checkbox(
         "Skorygowana symulacja Monte Carlo", 
         value=False,
-        help="Włącza model CAPM/GBM bazujący na oczekiwanym zwrocie rynkowym zamiast czystej historii."
+        help="Włącza model CAPM (Capital Asset Pricing Model) skorygowany o Alfę spółek."
     )
     
     if adj_mc:
-        with st.expander("📈 Parametry CAPM/GBM", expanded=True):
+        with st.expander("📈 Parametry Korekty Rynkowej", expanded=True):
             rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
             mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
+            alpha_retention = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30, 
+                                        help="Ile % historycznej przewagi spółki nad rynkiem utrzyma się w symulacji. 0% = wynik rynkowy, 100% = pełna powtórka sukcesu.")
             beta_speed = st.slider("Szybkość wygasania Bety:", 0.0, 0.2, 0.05)
 
     st.divider()
     limit_2x = st.checkbox(
         "Wymuś dywersyfikację (Limit 2x)", 
         value=True,
-        help="Największa pozycja może być max 2x większa niż najmniejsza."
+        help="""
+        **Zasada 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż najmniejsza. Zapobiega to dominacji jednej spółki i chroni przed ryzykiem specyficznym.
+        """
     )
     
-    run_mc = st.checkbox("Wykonaj symulacje Monte Carlo", value=True)
+    run_mc = st.checkbox(
+        "Wykonaj symulacje Monte Carlo", 
+        value=True,
+        help="""
+        **Co to robi?**
+        To matematyczna 'wróżba' oparta na faktach. System przeprowadza **10 000 wirtualnych rzutów kostką**, tworząc tysiące alternatywnych scenariuszy przyszłości dla Twojego portfela.
+        """
+    )
     
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ")
@@ -85,19 +104,33 @@ if analizuj:
         with st.spinner('📊 Analizowanie danych...'):
             fetch_tickers = tickers + (["SPY"] if adj_mc else [])
             data_raw = yf.download(fetch_tickers, period="3y")['Close']
-            
             if isinstance(data_raw.columns, pd.MultiIndex):
                 data_raw.columns = data_raw.columns.get_level_values(-1)
             
+            # Pobieranie i separacja benchmarku
             if adj_mc:
                 spy_rets = data_raw["SPY"].pct_change().dropna()
                 stock_data = data_raw[tickers]
+                
+                # Obliczanie Alfy i Bety
                 betas = {}
+                alphas = {}
+                spy_annual_ret = (1 + spy_rets.mean())**252 - 1
+                
                 for t in tickers:
-                    combined = pd.concat([stock_data[t].pct_change(), spy_rets], axis=1).dropna()
+                    t_rets = stock_data[t].pct_change().dropna()
+                    combined = pd.concat([t_rets, spy_rets], axis=1).dropna()
                     cov = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0,1]
                     var = np.var(combined.iloc[:,1])
-                    betas[t] = cov / var
+                    b = cov / var
+                    betas[t] = b
+                    
+                    # Historyczny zwrot roczny spółki
+                    hist_annual_ret = (1 + t_rets.mean())**252 - 1
+                    # Alfa historyczna = Wynik - [Rf + Beta * (Rm_hist - Rf)]
+                    capm_hist = rf_rate + b * (spy_annual_ret - rf_rate)
+                    alphas[t] = hist_annual_ret - capm_hist
+                
                 data_only = stock_data
             else:
                 data_only = data_raw[tickers] if "SPY" in data_raw.columns else data_raw
@@ -132,9 +165,9 @@ if analizuj:
             st.subheader(f"Rekomendowana alokacja ({opt_mode})")
             c1, c2, c3 = st.columns(3)
             p_var = (wagi_finalne * monthly_vars).sum()
-            c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
-            c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
-            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}")
+            c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%", help="Statystyczna miara ryzyka straty miesięcznej.")
+            c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}", help="Mierzy jak bardzo aktywa poruszają się w tym samym kierunku.")
+            c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}", help=f"Szacowana miesięczna strata przy kapitale {kwota:,.0f} PLN.")
             
             df_wynik = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi_finalne * 100, 'Kwota': wagi_finalne * kwota})
             if adj_mc: df_wynik['Beta'] = [betas[t] for t in tickers]
@@ -145,7 +178,8 @@ if analizuj:
         if run_mc:
             with tabs[1]:
                 st.subheader(f"Symulacja Monte Carlo - 10,000 symulacji ({opt_mode})")
-                st.info("Nota: Model GBM uwzględnia 'volatility drag' (korektę o zmienność).")
+                st.info("""**Ważna informacja:** Symulacja Monte Carlo bazuje na zmienności historycznej i statystyce. 
+                        Pamiętaj, że wyniki historyczne nie są gwarancją przyszłych zysków.""")
                 
                 n_sims, dt = 10000, 1/252
                 log_rets = np.log(data_only / data_only.shift(1)).dropna()
@@ -160,9 +194,17 @@ if analizuj:
                     current_prices = np.full(n_sims, float(kwota))
                     
                     if adj_mc:
-                        temp_beta = np.sum([betas[t] * wagi_finalne[idx] for idx, t in enumerate(tickers)])
+                        # Obliczanie ważonej Bety i ważonej Alfy portfela
+                        p_beta = np.sum([betas[t] * wagi_finalne[idx] for idx, t in enumerate(tickers)])
+                        p_alpha = np.sum([alphas[t] * wagi_finalne[idx] for idx, t in enumerate(tickers)])
+                        # Utrzymanie części Alfy zgodnie z suwakiem
+                        adj_alpha = p_alpha * (alpha_retention / 100)
+                        
+                        temp_beta = p_beta
                         for d in range(days):
-                            mu_adj = (rf_rate + temp_beta * (mkt_ret - rf_rate) - 0.5 * (port_sigma_annual**2)) * dt
+                            # CAPM + Utrzymana Alfa - Volatility Drag
+                            expected_annual = rf_rate + temp_beta * (mkt_ret - rf_rate) + adj_alpha
+                            mu_adj = (expected_annual - 0.5 * (port_sigma_annual**2)) * dt
                             current_prices *= np.exp(mu_adj + port_sigma_annual * np.random.normal(0, 1, n_sims) * np.sqrt(dt))
                             paths[d, :] = current_prices
                             if d % 252 == 0: temp_beta = temp_beta * (1 - beta_speed) + 1.0 * beta_speed
@@ -176,9 +218,8 @@ if analizuj:
                     final_v = paths[-1, :]
                     mediana = np.median(final_v)
                     
-                    # FORMATOWANIE WYNIKÓW W TABELI
                     stats_df = pd.DataFrame({
-                        "Metryka": ["95. Percentyl", "3. Kwartyl (75%)", "Mediana", "1. Kwartyl (25%)", "5. Percentyl", "Szansa na stratę", "Zwrot (CAGR)"],
+                        "Metryka": ["95. Percentyl", "3. Kwartyl (75%)", "Mediana", "1. Kwartyl (25%)", "5. Percentyl", "Szansa na stratę kapitału", "Średni roczny zwrot (CAGR)"],
                         "Wartość": [
                             f"{np.percentile(final_v, 95):,.2f}", 
                             f"{np.percentile(final_v, 75):,.2f}", 
