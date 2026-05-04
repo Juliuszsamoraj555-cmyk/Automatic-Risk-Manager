@@ -9,10 +9,30 @@ from PIL import Image
 import os
 from supabase import create_client, Client
 
-# --- 1. KONFIGURACJA SUPABASE (ZMIENNE ŚRODOWISKOWE) ---
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
+# --- 1. KONFIGURACJA SUPABASE (ZABEZPIECZONA) ---
+# Pobieramy surowe dane z Environment Variables
+url_raw = os.environ.get("SUPABASE_URL")
+key_raw = os.environ.get("SUPABASE_KEY")
+
+# Mechanizm czyszczenia adresu URL (usuwa /rest/v1, spacje i końcowe ukośniki)
+if url_raw:
+    url = url_raw.split("/rest/v1")[0].strip().rstrip("/")
+else:
+    url = None
+
+key = key_raw.strip() if key_raw else None
+
+# Sprawdzenie czy klucze w ogóle istnieją
+if not url or not key:
+    st.error("BŁĄD: Brak kluczy Supabase w ustawieniach Environment na Renderze!")
+    st.stop()
+
+# Inicjalizacja klienta
+try:
+    supabase: Client = create_client(url, key)
+except Exception as e:
+    st.error(f"Błąd inicjalizacji bazy danych: {e}")
+    st.stop()
 
 # --- 2. CACHE DANYCH ---
 @st.cache_data(ttl=3600)
@@ -48,10 +68,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. FUNKCJE POMOCNICZE (AUTH & STATUS) ---
+# --- 5. FUNKCJE POMOCNICZE ---
 def check_pro_status(email):
     try:
-        # Pobieramy status is_pro z tabeli profiles stworzonej w Supabase
         res = supabase.table("profiles").select("is_pro").eq("email", email).single().execute()
         return res.data['is_pro'] if res.data else False
     except:
@@ -67,9 +86,9 @@ if 'user' not in st.session_state:
         tab1, tab2 = st.tabs(["Logowanie", "Rejestracja"])
         
         with tab1:
-            login_email = st.text_input("E-mail")
-            login_password = st.text_input("Hasło", type="password")
-            if st.button("Zaloguj się"):
+            login_email = st.text_input("E-mail", key="login_email")
+            login_password = st.text_input("Hasło", type="password", key="login_pw")
+            if st.button("Zaloguj się", key="login_btn"):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
                     st.session_state.user = res
@@ -78,21 +97,21 @@ if 'user' not in st.session_state:
                     st.error("Nieprawidłowy e-mail lub hasło.")
 
         with tab2:
-            reg_email = st.text_input("Podaj e-mail")
-            reg_password = st.text_input("Ustaw hasło (min. 6 znaków)", type="password")
-            if st.button("Załóż darmowe konto"):
+            reg_email = st.text_input("Podaj e-mail", key="reg_email")
+            reg_password = st.text_input("Ustaw hasło (min. 6 znaków)", type="password", key="reg_pw")
+            if st.button("Załóż darmowe konto", key="reg_btn"):
                 try:
                     supabase.auth.sign_up({"email": reg_email, "password": reg_password})
                     st.success("Konto utworzone! Sprawdź skrzynkę e-mail, aby potwierdzić rejestrację.")
                 except Exception as e:
                     st.error(f"Błąd rejestracji: {e}")
-    st.stop() # Zatrzymujemy renderowanie reszty strony, jeśli użytkownik nie jest zalogowany
+    st.stop()
 
-# --- 7. JEŚLI ZALOGOWANY - POBIERZ DANE UŻYTKOWNIKA ---
+# --- 7. DANE ZALOGOWANEGO UŻYTKOWNIKA ---
 user_email = st.session_state.user.user.email
 is_pro = check_pro_status(user_email)
 
-# --- 8. SIDEBAR - KONFIGURACJA I STATUS ---
+# --- 8. SIDEBAR ---
 with st.sidebar:
     st.title("vAlpha Manager")
     st.write(f"Zalogowany: **{user_email}**")
@@ -102,7 +121,6 @@ with st.sidebar:
     else:
         st.warning("🆓 STATUS: FREE")
         if st.button("🚀 ODBLOKUJ WERSJĘ PRO"):
-            # Tutaj wstawisz link do Stripe Payment Link
             st.info("Przekierowanie do płatności Stripe (Wkrótce)")
 
     if st.button("Wyloguj"):
@@ -112,21 +130,10 @@ with st.sidebar:
 
     st.divider()
     st.subheader("KONFIGURACJA PORTFELA")
-    
-    tickers_input = st.text_input(
-        "Symbole spółek (ticker):", 
-        "AAPL, MSFT, NVDA, TSLA, AMZN"
-    )
-    
+    tickers_input = st.text_input("Symbole spółek (ticker):", "AAPL, MSFT, NVDA, TSLA, AMZN")
     kwota = st.number_input("Kapitał początkowy (PLN):", value=25000, step=1000)
-    
-    opt_mode = st.radio(
-        "Model Optymalizacji:",
-        ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"]
-    )
-    
+    opt_mode = st.radio("Model Optymalizacji:", ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"])
     ryzyko_val = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
-    
     limit_2x = st.checkbox("Wymuś dywersyfikację (Limit 2x)", value=True)
     run_mc = st.checkbox("Wykonaj symulacje Monte Carlo", value=True)
     
@@ -146,31 +153,20 @@ with st.sidebar:
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
 
-# --- 9. DISCLAIMER (PO LOGOWANIU) ---
-st.markdown("""
-    <div class="disclaimer-red">
-        <strong>WAŻNE INFORMACJE PRAWNE</strong><br>
-        Niniejsza aplikacja ma charakter wyłącznie edukacyjny. Inwestowanie wiąże się z ryzykiem utraty kapitału.
-    </div>
-    """, unsafe_allow_html=True)
+# --- 9. LOGIKA ANALIZY ---
+st.markdown('<div class="disclaimer-red"><strong>WAŻNE:</strong> Aplikacja edukacyjna. Inwestowanie wiąże się z ryzykiem.</div>', unsafe_allow_html=True)
 
-# --- 10. LOGIKA ANALIZY (MONTE CARLO ITP.) ---
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
-    
-    # Blokada limitu spółek dla darmowych kont
     if not is_pro and len(tickers) > 5:
-        st.error(f"Wersja darmowa obsługuje max. 5 spółek (wpisano: {len(tickers)}). Aktywuj PRO, aby dodać więcej.")
+        st.error(f"Wersja darmowa obsługuje max. 5 spółek. Aktywuj PRO dla większej liczby.")
     else:
         try:
-            with st.spinner('Analizowanie danych rynkowych...'):
+            with st.spinner('Analizowanie danych...'):
                 fetch_list = tickers + (["SPY"] if adj_mc else [])
                 data = get_data_cached(tuple(fetch_list))
+                if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(-1)
                 
-                if isinstance(data.columns, pd.MultiIndex):
-                    data.columns = data.columns.get_level_values(-1)
-                
-                # Logika CAPM (PRO)
                 if adj_mc:
                     spy_rets = data["SPY"].pct_change().dropna()
                     stock_data = data[tickers]
@@ -192,7 +188,6 @@ if analizuj:
                 monthly_vars = monthly_rets.quantile(0.05) * -1
                 corr_matrix = monthly_rets.corr()
 
-            # Optymalizacja wag
             if opt_mode == "Bezpieczeństwo (VaR-First)":
                 p = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko_val]
                 target_w_raw = (1 / (monthly_vars ** p)) * (1 - corr_matrix.mean())
@@ -207,36 +202,25 @@ if analizuj:
                            ([{'type': 'ineq', 'fun': lambda w: 2 * np.min(w) - np.max(w)}] if limit_2x else []))
             wagi = res.x
 
-            # --- PREZENTACJA WYNIKÓW ---
-            tabs = st.tabs(["Struktura Portfela", "Symulacja Monte Carlo", "Macierz Korelacji", "Metodologia"])
-
+            tabs = st.tabs(["Struktura", "Monte Carlo", "Korelacja", "Metodologia"])
             with tabs[0]:
-                st.subheader(f"Rekomendowana alokacja ({opt_mode})")
                 c1, c2, c3 = st.columns(3)
                 p_var = (wagi * monthly_vars).sum()
                 c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
                 c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
                 c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}")
-                
-                df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi * 100, 'Kwota': wagi * kwota})
-                if adj_mc: df_out['Beta'] = [betas[t] for t in tickers]
-                st.dataframe(df_out.sort_values(by='Udział (%)', ascending=False), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi * 100, 'Kwota': wagi * kwota}), hide_index=True)
 
             if run_mc:
                 with tabs[1]:
-                    st.subheader("Symulacja Monte Carlo - 3,000 ścieżek")
                     n_sims, dt = 3000, 1/252
-                    log_rets = np.log(data_only / data_only.shift(1)).dropna()
-                    p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
-                    
+                    p_sigma = np.sqrt(np.dot(wagi.T, np.dot(np.log(data_only / data_only.shift(1)).dropna().cov().values, wagi))) * np.sqrt(252)
                     col_a, col_b = st.columns(2)
                     plt.style.use("dark_background")
-
                     for i, (y, lbl) in enumerate(zip([5, 10], ["5 Lat", "10 Lat"])):
                         days = y * 252
                         paths = np.zeros((days, n_sims))
                         curr = np.full(n_sims, float(kwota))
-                        
                         if adj_mc:
                             p_beta = np.sum([betas[t] * wagi[idx] for idx, t in enumerate(tickers)])
                             p_alpha = np.sum([alphas[t] * wagi[idx] for idx, t in enumerate(tickers)]) * (alpha_ret / 100)
@@ -251,25 +235,16 @@ if analizuj:
                             for d in range(days):
                                 curr *= np.exp(mu + p_sigma * np.random.normal(0, 1, n_sims) * np.sqrt(dt))
                                 paths[d, :] = curr
-
-                        final = paths[-1, :]
-                        med = np.median(final)
-                        
                         with (col_a if i == 0 else col_b):
                             st.write(f"#### PERSPEKTYWA: {lbl}")
-                            st.metric("Mediana wyniku", f"{med:,.2f} PLN")
-                            fig, ax = plt.subplots(figsize=(10, 6))
-                            ax.plot(paths[:, :50], color='#238636', alpha=0.1) 
-                            ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
+                            st.metric("Mediana", f"{np.median(paths[-1, :]):,.2f} PLN")
+                            fig, ax = plt.subplots()
+                            ax.plot(paths[:, :50], color='#238636', alpha=0.1)
+                            ax.plot(np.median(paths, axis=1), color='white')
                             st.pyplot(fig)
-
             with tabs[2]:
-                fig_c, ax_c = plt.subplots(figsize=(12, 8))
-                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
+                fig_c, ax_c = plt.subplots()
+                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', ax=ax_c)
                 st.pyplot(fig_c)
-
-            with tabs[3]:
-                st.write("Dokumentacja algorytmu dostępna dla wersji PRO.")
-
         except Exception as e:
-            st.error(f"Błąd krytyczny: {e}")
+            st.error(f"Błąd: {e}")
