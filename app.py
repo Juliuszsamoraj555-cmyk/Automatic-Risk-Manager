@@ -7,20 +7,26 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
+from supabase import create_client, Client
 
-# --- OPTYMALIZACJA 1: CACHE DATA ---
+# --- 1. KONFIGURACJA SUPABASE (ZMIENNE ŚRODOWISKOWE) ---
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
+
+# --- 2. CACHE DANYCH ---
 @st.cache_data(ttl=3600)
 def get_data_cached(tickers_tuple):
     return yf.download(list(tickers_tuple), period="3y")['Close']
 
-# 1. KONFIGURACJA STRONY
+# --- 3. KONFIGURACJA STRONY ---
 try:
     v_alpha_icon = Image.open('image_8.png')
     st.set_page_config(page_title="Valpha Portfolio Manager", page_icon=v_alpha_icon, layout="wide")
 except:
     st.set_page_config(page_title="Valpha Portfolio Manager", layout="wide")
 
-# 2. DESIGN CSS
+# --- 4. DESIGN CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -42,126 +48,129 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. PEŁNY DISCLAIMER PRAWNY
-st.markdown("""
-    <div class="disclaimer-red">
-        <strong>WAŻNE INFORMACJE PRAWNE ORAZ ZASTRZEŻENIA</strong><br>
-        Niniejsza aplikacja ma charakter wyłącznie informacyjny oraz edukacyjny i nie stanowi rekomendacji inwestycyjnej ani porady finansowej w rozumieniu Rozporządzenia Ministra Finansów z dnia 19 października 2005 r. w sprawie informacji stanowiących rekomendacje dotyczące instrumentów finansowych lub ich emitentów. 
-        Inwestowanie na rynkach kapitałowych oraz w kryptowaluty wiąże się z wysokim ryzykiem utraty części lub całości kapitału. Wszelkie symulacje, w tym modele Monte Carlo oraz prognozy CAPM, bazują na danych historycznych i zaawansowanych algorytmach statystycznych, które nie stanowią gwarancji osiągnięcia podobnych wyników w przyszłości. 
-        Autor narzędzia nie ponosi żadnej odpowiedzialności za decyzje inwestycyjne podjęte na podstawie danych generowanych przez system. Pamiętaj, że wyniki historyczne nie są wyznacznikiem przyszłych zysków. Przed podjęciem jakichkolwiek działań na rynku skonsultuj się z licencjonowanym doradcą inwestycyjnym.
-    </div>
-    """, unsafe_allow_html=True)
-
-# 4. SIDEBAR - KONFIGURACJA I SUBSKRYPCJA
-with st.sidebar:
+# --- 5. FUNKCJE POMOCNICZE (AUTH & STATUS) ---
+def check_pro_status(email):
     try:
-        st.image(v_alpha_icon, width=100)
+        # Pobieramy status is_pro z tabeli profiles stworzonej w Supabase
+        res = supabase.table("profiles").select("is_pro").eq("email", email).single().execute()
+        return res.data['is_pro'] if res.data else False
     except:
-        pass
-    st.title("Valpha Portfolio Manager")
-    
-    st.subheader("STATUS SUBSKRYPCJI")
-    license_key = st.text_input("Klucz licencyjny PRO:", type="password", help="Wprowadź swój unikalny klucz, aby odblokować zaawansowane modele Monte Carlo oraz nielimitowaną liczbę spółek w portfelu.")
-    is_pro = (license_key == "PRO2024")
+        return False
+
+# --- 6. LOGIKA LOGOWANIA / EKRAN STARTOWY ---
+if 'user' not in st.session_state:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.title("🚀 vAlpha Terminal")
+        st.write("Zaloguj się, aby uzyskać dostęp do profesjonalnych narzędzi zarządzania ryzykiem.")
+        
+        tab1, tab2 = st.tabs(["Logowanie", "Rejestracja"])
+        
+        with tab1:
+            login_email = st.text_input("E-mail")
+            login_password = st.text_input("Hasło", type="password")
+            if st.button("Zaloguj się"):
+                try:
+                    res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
+                    st.session_state.user = res
+                    st.rerun()
+                except Exception as e:
+                    st.error("Nieprawidłowy e-mail lub hasło.")
+
+        with tab2:
+            reg_email = st.text_input("Podaj e-mail")
+            reg_password = st.text_input("Ustaw hasło (min. 6 znaków)", type="password")
+            if st.button("Załóż darmowe konto"):
+                try:
+                    supabase.auth.sign_up({"email": reg_email, "password": reg_password})
+                    st.success("Konto utworzone! Sprawdź skrzynkę e-mail, aby potwierdzić rejestrację.")
+                except Exception as e:
+                    st.error(f"Błąd rejestracji: {e}")
+    st.stop() # Zatrzymujemy renderowanie reszty strony, jeśli użytkownik nie jest zalogowany
+
+# --- 7. JEŚLI ZALOGOWANY - POBIERZ DANE UŻYTKOWNIKA ---
+user_email = st.session_state.user.user.email
+is_pro = check_pro_status(user_email)
+
+# --- 8. SIDEBAR - KONFIGURACJA I STATUS ---
+with st.sidebar:
+    st.title("vAlpha Manager")
+    st.write(f"Zalogowany: **{user_email}**")
     
     if is_pro:
-        st.success("WERSJA PRO AKTYWNA")
+        st.success("💎 STATUS: PRO")
     else:
-        st.warning("WERSJA FREE (LIMIT: 5 SPÓŁEK)")
+        st.warning("🆓 STATUS: FREE")
+        if st.button("🚀 ODBLOKUJ WERSJĘ PRO"):
+            # Tutaj wstawisz link do Stripe Payment Link
+            st.info("Przekierowanie do płatności Stripe (Wkrótce)")
+
+    if st.button("Wyloguj"):
+        supabase.auth.sign_out()
+        del st.session_state.user
+        st.rerun()
 
     st.divider()
     st.subheader("KONFIGURACJA PORTFELA")
     
     tickers_input = st.text_input(
         "Symbole spółek (ticker):", 
-        "AAPL, MSFT, NVDA, TSLA, AMZN",
-        help="""
-        **Instrukcja wprowadzania symboli:**
-        
-        System pobiera dane bezpośrednio z serwerów Yahoo Finance. 
-        * **Rynek USA:** Wpisuj sam ticker (np. AAPL, TSLA, MSFT).
-        * **Polska (GPW):** Dodaj rozszerzenie .WA (np. ALE.WA, PKO.WA, CDR.WA).
-        * **Rynek niemiecki:** Dodaj .DE (np. BMW.DE, ADS.DE).
-        * **Kryptowaluty:** Dodaj -USD (np. BTC-USD, ETH-USD).
-        * **Surowce:** Użyj symboli kontraktów terminowych (np. GC=F dla złota, CL=F dla ropy).
-        
-        Dokładny symbol możesz sprawdzić na finance.yahoo.com.
-        """
+        "AAPL, MSFT, NVDA, TSLA, AMZN"
     )
     
     kwota = st.number_input("Kapitał początkowy (PLN):", value=25000, step=1000)
     
-    st.divider()
     opt_mode = st.radio(
         "Model Optymalizacji:",
-        ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
-        help="""
-        **Bezpieczeństwo (VaR):** Model koncentruje się na minimalizacji potencjalnych strat w najgorszych scenariuszach rynkowych. Wybiera aktywa o najwyższej stabilności i najniższej korelacji.
-        
-        **Efektywność (Sortino):** Model szuka najlepszego stosunku zysku do ryzyka spadków (downside risk). Premiuje aktywa, które rosną stabilnie, ale rzadko zaliczają gwałtowne załamania ceny.
-        """
+        ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"]
     )
     
     ryzyko_val = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
     
-    limit_2x = st.checkbox(
-        "Wymuś dywersyfikację (Limit 2x)", 
-        value=True,
-        help="""
-        **Zasada proporcji 2x:** Algorytm pilnuje, aby największa pozycja w portfelu była maksymalnie dwa razy większa niż pozycja najmniejsza.
-        
-        **Dlaczego to ważne?** Zapobiega to tzw. dominacji jednego aktywa. Nawet jeśli model uzna daną spółkę za idealną, limit wymusza rozłożenie kapitału, chroniąc Cię przed ryzykiem specyficznym – czyli nagłym upadkiem jednej firmy z przyczyn pozarynkowych.
-        """
-    )
-    
-    run_mc = st.checkbox(
-        "Wykonaj symulacje Monte Carlo", 
-        value=True,
-        help="""
-        **Co to robi?** System przeprowadza symulacje wirtualne przyszłości dla Twojego portfela. 
-        
-        **Zastosowanie:** Zamiast jednej linii zysku, widzisz cały wachlarz możliwości – od skrajnie pesymistycznych po bardzo optymistyczne. Pozwala to realnie zrozumieć statystyczne prawdopodobieństwo straty kapitału w czasie.
-        """
-    )
+    limit_2x = st.checkbox("Wymuś dywersyfikację (Limit 2x)", value=True)
+    run_mc = st.checkbox("Wykonaj symulacje Monte Carlo", value=True)
     
     adj_mc = False
     if run_mc:
         label_adj = "Skorygowana symulacja Monte Carlo"
         if not is_pro: label_adj += " (Wymaga PRO)"
-        
-        adj_mc = st.checkbox(
-            label_adj, 
-            value=False, 
-            disabled=not is_pro,
-            help="Włącza model CAPM skorygowany o historyczną Alfę. Uwzględnia wpływ zmienności na stopę zwrotu (volatility drag) oraz pozwala na symulowanie przewagi rynkowej spółek (Alfa retention)."
-        )
+        adj_mc = st.checkbox(label_adj, value=False, disabled=not is_pro)
         
         if adj_mc and is_pro:
-            with st.expander("PARAMETRY RYNKOWE CAPM / GBM", expanded=True):
+            with st.expander("PARAMETRY RYNKOWE CAPM", expanded=True):
                 rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
                 mkt_ret = st.number_input("Oczekiwany zwrot rynku (Rm %):", value=10.0) / 100
-                alpha_ret = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30, help="Jaki procent historycznej przewagi spółki nad rynkiem utrzyma się w przyszłości.")
-                beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05, help="Tempo, w jakim Beta spółki dąży do średniej rynkowej (1.0).")
+                alpha_ret = st.slider("Utrzymanie przewagi (Alfa %):", 0, 100, 30)
+                beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05)
 
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
 
-# 5. LOGIKA ANALIZY I OBLICZEŃ
+# --- 9. DISCLAIMER (PO LOGOWANIU) ---
+st.markdown("""
+    <div class="disclaimer-red">
+        <strong>WAŻNE INFORMACJE PRAWNE</strong><br>
+        Niniejsza aplikacja ma charakter wyłącznie edukacyjny. Inwestowanie wiąże się z ryzykiem utraty kapitału.
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- 10. LOGIKA ANALIZY (MONTE CARLO ITP.) ---
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     
+    # Blokada limitu spółek dla darmowych kont
     if not is_pro and len(tickers) > 5:
-        st.error(f"Wykryto {len(tickers)} spółek. Wersja darmowa obsługuje maksymalnie 5 pozycji. Usuń nadmiarowe symbole lub aktywuj wersję PRO.")
+        st.error(f"Wersja darmowa obsługuje max. 5 spółek (wpisano: {len(tickers)}). Aktywuj PRO, aby dodać więcej.")
     else:
         try:
-            with st.spinner('Pobieranie i analizowanie danych rynkowych...'):
+            with st.spinner('Analizowanie danych rynkowych...'):
                 fetch_list = tickers + (["SPY"] if adj_mc else [])
-                # --- OPTYMALIZACJA 1: WYWOŁANIE CACHE ---
                 data = get_data_cached(tuple(fetch_list))
                 
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.get_level_values(-1)
                 
+                # Logika CAPM (PRO)
                 if adj_mc:
                     spy_rets = data["SPY"].pct_change().dropna()
                     stock_data = data[tickers]
@@ -183,7 +192,7 @@ if analizuj:
                 monthly_vars = monthly_rets.quantile(0.05) * -1
                 corr_matrix = monthly_rets.corr()
 
-            # --- OPTYMALIZACJA ---
+            # Optymalizacja wag
             if opt_mode == "Bezpieczeństwo (VaR-First)":
                 p = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko_val]
                 target_w_raw = (1 / (monthly_vars ** p)) * (1 - corr_matrix.mean())
@@ -205,22 +214,17 @@ if analizuj:
                 st.subheader(f"Rekomendowana alokacja ({opt_mode})")
                 c1, c2, c3 = st.columns(3)
                 p_var = (wagi * monthly_vars).sum()
-                c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%", help="Statystycznie istnieje tylko 5% szansy, że w ciągu jednego miesiąca portfel straci więcej niż ten procent. Jest to miara normalnego ryzyka rynkowego.")
-                c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}", help="Określa, jak bardzo spółki poruszają się w parze. Blisko 0 oznacza świetną dywersyfikację.")
-                c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}", help=f"Twój miesięczny VaR przeliczony na kwotę przy kapitale {kwota:,.0f} PLN.")
+                c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
+                c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
+                c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}")
                 
-                st.divider()
                 df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi * 100, 'Kwota': wagi * kwota})
                 if adj_mc: df_out['Beta'] = [betas[t] for t in tickers]
-                st.dataframe(df_out.sort_values(by='Udział (%)', ascending=False).style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), hide_index=True, use_container_width=True)
+                st.dataframe(df_out.sort_values(by='Udział (%)', ascending=False), hide_index=True, use_container_width=True)
 
             if run_mc:
                 with tabs[1]:
-                    # --- OPTYMALIZACJA 2: ZMIANA NA 3000 ---
-                    st.subheader("Symulacja Monte Carlo - 3,000 symulacji")
-                    st.info("""**Ważna informacja:** Symulacja bazuje na analizie statystycznej zmienności historycznej. 
-                            Wyniki nie stanowią gwarancji przyszłych zysków, a realne warunki rynkowe mogą odbiegać od symulowanych scenariuszy.""")
-                    
+                    st.subheader("Symulacja Monte Carlo - 3,000 ścieżek")
                     n_sims, dt = 3000, 1/252
                     log_rets = np.log(data_only / data_only.shift(1)).dropna()
                     p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
@@ -250,60 +254,22 @@ if analizuj:
 
                         final = paths[-1, :]
                         med = np.median(final)
-                        res_df = pd.DataFrame({
-                            "Metryka": ["95. Percentyl (Optymizm)", "3. Kwartyl (75%)", "Mediana (Statystyczny wynik)", "1. Kwartyl (25%)", "5. Percentyl (Pesymizm)", "Prawdopodobieństwo straty", "CAGR (Roczny zwrot)"],
-                            "Wartość": [f"{np.percentile(final, 95):,.2f}", f"{np.percentile(final, 75):,.2f}", f"{med:,.2f}", f"{np.percentile(final, 25):,.2f}", 
-                                        f"{np.percentile(final, 5):,.2f}", f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%", f"{((med / kwota)**(1/y) - 1)*100:.2f}%"]
-                        })
+                        
                         with (col_a if i == 0 else col_b):
                             st.write(f"#### PERSPEKTYWA: {lbl}")
-                            st.table(res_df)
+                            st.metric("Mediana wyniku", f"{med:,.2f} PLN")
                             fig, ax = plt.subplots(figsize=(10, 6))
-                            ax.plot(paths[:, :50], color='#238636', alpha=0.06) # 50 linii dla oszczędności RAM
+                            ax.plot(paths[:, :50], color='#238636', alpha=0.1) 
                             ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
                             st.pyplot(fig)
-                    plt.style.use('default')
 
             with tabs[2]:
-                st.subheader("Macierz korelacji między aktywami")
                 fig_c, ax_c = plt.subplots(figsize=(12, 8))
                 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
                 st.pyplot(fig_c)
 
             with tabs[3]:
-                st.header("Metodologia obliczeń i algorytmy")
-                
-                with st.expander("1. Optymalizacja wag portfela", expanded=True):
-                    st.markdown("""
-                    Algorytm wyznacza optymalny udział każdej spółki w oparciu o wybraną strategię:
-                    
-                    **A. Model VaR-First (Bezpieczeństwo)**
-                    Wagi są wyznaczane na podstawie odwrotności Wartości Zagrożonej (VaR) oraz średniej korelacji:
-                    $$W_i \\propto \\frac{1 - \\bar{\\rho}_i}{VaR_i^p}$$
-                    Gdzie $p$ to wykładnik kary za ryzyko zależny od Twojego profilu.
-                    
-                    **B. Model Sortino (Efektywność)**
-                    Maksymalizacja zysku w stosunku do odchylenia standardowego strat (downside deviation):
-                    $$W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\\rho}_i)$$
-                    """)
-                
-                with st.expander("2. Skorygowana Symulacja Monte Carlo (GBM + CAPM)"):
-                    st.markdown("""
-                    Model generuje tysiące alternatywnych ścieżek cenowych przy użyciu procesu Geometrycznego Ruchu Browna (GBM):
-                    
-                    **Krok 1: Wyznaczenie Oczekiwanej Stopy Zwrotu (CAPM + Alfa)**
-                    Stosujemy model wyceny aktywów kapitałowych wzbogacony o historyczną przewagę (Alfę):
-                    $$E(R_i) = R_f + \\beta_i(E(R_m) - R_f) + \\alpha \\cdot \\text{retention}$$
-                    
-                    **Krok 2: Korekta Dryfu (Volatility Drag)**
-                    Wariancja obniża realną medianę kapitału w czasie, co uwzględniamy w parametrze $\\mu$:
-                    $$\\mu_{adj} = E(R_i) - \\frac{1}{2}\\sigma^2$$
-                    
-                    **Krok 3: Generowanie ścieżek cenowych**
-                    Dla każdego kroku czasowego $\\Delta t$ wyliczamy nową cenę:
-                    $$P_{t+1} = P_t \\cdot e^{(\\mu_{adj} \\Delta t + \\sigma \\epsilon \\sqrt{\\Delta t})}$$
-                    Gdzie $\\epsilon$ to zmienna losowa z rozkładu normalnego $N(0,1)$.
-                    """)
+                st.write("Dokumentacja algorytmu dostępna dla wersji PRO.")
 
         except Exception as e:
-            st.error(f"Błąd krytyczny systemu: {e}")
+            st.error(f"Błąd krytyczny: {e}")
