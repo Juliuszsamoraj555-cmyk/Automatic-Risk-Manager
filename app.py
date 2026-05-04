@@ -123,7 +123,7 @@ with st.sidebar:
     else:
         st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
         # TUTAJ WKLEJASZ SWÓJ LINK STRIPE
-        st.link_button("🚀 ODBLOKUJ PEŁNĄ MOC (25 PLN)", "https://buy.stripe.com/test_28EbJ07kFdIegDecRK5AQ00")
+        st.link_button("🚀 ODBLOKUJ PEŁNĄ MOC (25 PLN)", "https://buy.stripe.com/eVqbJ10kz6Y32plf1Gd3i02")
 
     if st.button("Wyloguj"):
         supabase.auth.sign_out()
