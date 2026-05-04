@@ -101,7 +101,7 @@ if 'user' not in st.session_state:
 user_email = st.session_state.user.user.email
 is_pro = check_pro_status(user_email)
 
-# PEŁNY DISCLAIMER PRAWNY (PRZYWRÓCONY)
+# PEŁNY DISCLAIMER PRAWNY
 st.markdown("""
     <div class="disclaimer-red">
         <strong>WAŻNE INFORMACJE PRAWNE ORAZ ZASTRZEŻENIA</strong><br>
@@ -111,14 +111,19 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# SIDEBAR (Z PEŁNYMI OPISAMI)
+# SIDEBAR (Z PEŁNYMI OPISAMI I LINKIEM DO PŁATNOŚCI)
 with st.sidebar:
     try: st.image(v_alpha_icon, width=100)
     except: pass
     st.title("Valpha Manager")
     st.write(f"Zalogowany: **{user_email}**")
-    if is_pro: st.success("💎 STATUS: PRO")
-    else: st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
+    
+    if is_pro:
+        st.success("💎 STATUS: PRO")
+    else:
+        st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
+        # TUTAJ WKLEJASZ SWÓJ LINK STRIPE
+        st.link_button("🚀 ODBLOKUJ PEŁNĄ MOC (25 PLN)", "https://buy.stripe.com/test_28EbJ07kFdIegDecRK5AQ00")
 
     if st.button("Wyloguj"):
         supabase.auth.sign_out()
