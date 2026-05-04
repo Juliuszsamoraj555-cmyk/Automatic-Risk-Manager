@@ -9,12 +9,10 @@ from PIL import Image
 import os
 from supabase import create_client, Client
 
-# --- 1. KONFIGURACJA SUPABASE (ZABEZPIECZONA) ---
-# Pobieramy surowe dane z Environment Variables
+# --- 1. KONFIGURACJA SUPABASE (PANCERNA) ---
 url_raw = os.environ.get("SUPABASE_URL")
 key_raw = os.environ.get("SUPABASE_KEY")
 
-# Mechanizm czyszczenia adresu URL (usuwa /rest/v1, spacje i końcowe ukośniki)
 if url_raw:
     url = url_raw.split("/rest/v1")[0].strip().rstrip("/")
 else:
@@ -22,31 +20,29 @@ else:
 
 key = key_raw.strip() if key_raw else None
 
-# Sprawdzenie czy klucze w ogóle istnieją
 if not url or not key:
-    st.error("BŁĄD: Brak kluczy Supabase w ustawieniach Environment na Renderze!")
+    st.error("KRYTYCZNY BŁĄD: Brak kluczy Supabase w Environment Variables!")
     st.stop()
 
-# Inicjalizacja klienta
 try:
     supabase: Client = create_client(url, key)
 except Exception as e:
-    st.error(f"Błąd inicjalizacji bazy danych: {e}")
+    st.error(f"Błąd połączenia z bazą: {e}")
     st.stop()
 
-# --- 2. CACHE DANYCH ---
+# --- 2. OPTYMALIZACJA: CACHE DATA ---
 @st.cache_data(ttl=3600)
 def get_data_cached(tickers_tuple):
     return yf.download(list(tickers_tuple), period="3y")['Close']
 
-# --- 3. KONFIGURACJA STRONY ---
+# --- 3. KONFIGURACJA STRONY I IKONY ---
 try:
     v_alpha_icon = Image.open('image_8.png')
-    st.set_page_config(page_title="Valpha Portfolio Manager", page_icon=v_alpha_icon, layout="wide")
+    st.set_page_config(page_title="vAlpha Portfolio Manager", page_icon=v_alpha_icon, layout="wide")
 except:
-    st.set_page_config(page_title="Valpha Portfolio Manager", layout="wide")
+    st.set_page_config(page_title="vAlpha Portfolio Manager", layout="wide")
 
-# --- 4. DESIGN CSS ---
+# --- 4. PEŁNY DESIGN CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -68,7 +64,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. FUNKCJE POMOCNICZE ---
+# --- 5. FUNKCJE POMOCNICZE AUTH ---
 def check_pro_status(email):
     try:
         res = supabase.table("profiles").select("is_pro").eq("email", email).single().execute()
@@ -76,52 +72,53 @@ def check_pro_status(email):
     except:
         return False
 
-# --- 6. LOGIKA LOGOWANIA / EKRAN STARTOWY ---
+# --- 6. LOGIKA LOGOWANIA (BRAMKA) ---
 if 'user' not in st.session_state:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("🚀 vAlpha Terminal")
-        st.write("Zaloguj się, aby uzyskać dostęp do profesjonalnych narzędzi zarządzania ryzykiem.")
-        
+        st.write("Witaj w profesjonalnym systemie zarządzania ryzykiem.")
         tab1, tab2 = st.tabs(["Logowanie", "Rejestracja"])
         
         with tab1:
-            login_email = st.text_input("E-mail", key="login_email")
-            login_password = st.text_input("Hasło", type="password", key="login_pw")
-            if st.button("Zaloguj się", key="login_btn"):
+            l_email = st.text_input("E-mail", key="l_mail")
+            l_pw = st.text_input("Hasło", type="password", key="l_pw")
+            if st.button("Zaloguj się"):
                 try:
-                    res = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
+                    res = supabase.auth.sign_in_with_password({"email": l_email, "password": l_pw})
                     st.session_state.user = res
                     st.rerun()
-                except Exception as e:
-                    st.error("Nieprawidłowy e-mail lub hasło.")
+                except:
+                    st.error("Błąd logowania. Sprawdź dane.")
 
         with tab2:
-            reg_email = st.text_input("Podaj e-mail", key="reg_email")
-            reg_password = st.text_input("Ustaw hasło (min. 6 znaków)", type="password", key="reg_pw")
-            if st.button("Załóż darmowe konto", key="reg_btn"):
+            r_email = st.text_input("Twój e-mail", key="r_mail")
+            r_pw = st.text_input("Hasło (min. 6 znaków)", type="password", key="r_pw")
+            if st.button("Załóż konto"):
                 try:
-                    supabase.auth.sign_up({"email": reg_email, "password": reg_password})
-                    st.success("Konto utworzone! Sprawdź skrzynkę e-mail, aby potwierdzić rejestrację.")
+                    supabase.auth.sign_up({"email": r_email, "password": r_pw})
+                    st.success("Konto utworzone! Sprawdź e-mail, aby potwierdzić profil.")
                 except Exception as e:
-                    st.error(f"Błąd rejestracji: {e}")
+                    st.error(f"Błąd: {e}")
     st.stop()
 
-# --- 7. DANE ZALOGOWANEGO UŻYTKOWNIKA ---
+# --- 7. APALIKACJA GŁÓWNA (PO ZALOGOWANIU) ---
 user_email = st.session_state.user.user.email
 is_pro = check_pro_status(user_email)
 
-# --- 8. SIDEBAR ---
+# SIDEBAR
 with st.sidebar:
+    try: st.image(v_alpha_icon, width=80)
+    except: pass
     st.title("vAlpha Manager")
     st.write(f"Zalogowany: **{user_email}**")
     
     if is_pro:
-        st.success("💎 STATUS: PRO")
+        st.success("💎 STATUS: PRO (Nielimitowany)")
     else:
-        st.warning("🆓 STATUS: FREE")
-        if st.button("🚀 ODBLOKUJ WERSJĘ PRO"):
-            st.info("Przekierowanie do płatności Stripe (Wkrótce)")
+        st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
+        if st.button("🚀 ODBLOKUJ PEŁNĄ MOC"):
+            st.info("Płatności Stripe zostaną wdrożone wkrótce.")
 
     if st.button("Wyloguj"):
         supabase.auth.sign_out()
@@ -130,17 +127,28 @@ with st.sidebar:
 
     st.divider()
     st.subheader("KONFIGURACJA PORTFELA")
-    tickers_input = st.text_input("Symbole spółek (ticker):", "AAPL, MSFT, NVDA, TSLA, AMZN")
+    tickers_input = st.text_input(
+        "Symbole spółek (ticker):", 
+        "AAPL, MSFT, NVDA, TSLA, AMZN",
+        help="USA: AAPL | GPW: CDR.WA | Krypto: BTC-USD"
+    )
+    
     kwota = st.number_input("Kapitał początkowy (PLN):", value=25000, step=1000)
-    opt_mode = st.radio("Model Optymalizacji:", ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"])
+    
+    opt_mode = st.radio(
+        "Model Optymalizacji:",
+        ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
+        help="VaR: Minimalizacja strat | Sortino: Max zysku do ryzyka spadków"
+    )
+    
     ryzyko_val = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
     limit_2x = st.checkbox("Wymuś dywersyfikację (Limit 2x)", value=True)
     run_mc = st.checkbox("Wykonaj symulacje Monte Carlo", value=True)
     
     adj_mc = False
     if run_mc:
-        label_adj = "Skorygowana symulacja Monte Carlo"
-        if not is_pro: label_adj += " (Wymaga PRO)"
+        label_adj = "Skorygowana symulacja CAPM"
+        if not is_pro: label_adj += " (Tylko PRO)"
         adj_mc = st.checkbox(label_adj, value=False, disabled=not is_pro)
         
         if adj_mc and is_pro:
@@ -153,16 +161,22 @@ with st.sidebar:
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
 
-# --- 9. LOGIKA ANALIZY ---
-st.markdown('<div class="disclaimer-red"><strong>WAŻNE:</strong> Aplikacja edukacyjna. Inwestowanie wiąże się z ryzykiem.</div>', unsafe_allow_html=True)
+# MAIN AREA
+st.markdown("""
+    <div class="disclaimer-red">
+        <strong>WAŻNE INFORMACJE PRAWNE</strong><br>
+        Aplikacja ma charakter edukacyjny i nie stanowi rekomendacji inwestycyjnej. Inwestowanie wiąże się z ryzykiem utraty kapitału.
+    </div>
+    """, unsafe_allow_html=True)
 
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
+    
     if not is_pro and len(tickers) > 5:
-        st.error(f"Wersja darmowa obsługuje max. 5 spółek. Aktywuj PRO dla większej liczby.")
+        st.error(f"Wersja FREE obsługuje do 5 spółek. Twoja lista ma {len(tickers)} pozycji.")
     else:
         try:
-            with st.spinner('Analizowanie danych...'):
+            with st.spinner('Przetwarzanie danych rynkowych...'):
                 fetch_list = tickers + (["SPY"] if adj_mc else [])
                 data = get_data_cached(tuple(fetch_list))
                 if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(-1)
@@ -188,6 +202,7 @@ if analizuj:
                 monthly_vars = monthly_rets.quantile(0.05) * -1
                 corr_matrix = monthly_rets.corr()
 
+            # Optymalizacja wag (SLSQP)
             if opt_mode == "Bezpieczeństwo (VaR-First)":
                 p = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko_val]
                 target_w_raw = (1 / (monthly_vars ** p)) * (1 - corr_matrix.mean())
@@ -202,25 +217,37 @@ if analizuj:
                            ([{'type': 'ineq', 'fun': lambda w: 2 * np.min(w) - np.max(w)}] if limit_2x else []))
             wagi = res.x
 
-            tabs = st.tabs(["Struktura", "Monte Carlo", "Korelacja", "Metodologia"])
+            # TABS
+            tabs = st.tabs(["📊 Struktura Portfela", "📈 Symulacja Monte Carlo", "🧩 Korelacje", "🔬 Metodologia"])
+
             with tabs[0]:
+                st.subheader("Rekomendowana Alokacja Kapitału")
                 c1, c2, c3 = st.columns(3)
                 p_var = (wagi * monthly_vars).sum()
                 c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
                 c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
                 c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.2f}")
-                st.dataframe(pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi * 100, 'Kwota': wagi * kwota}), hide_index=True)
+                
+                st.divider()
+                df_res = pd.DataFrame({'Ticker': tickers, 'Udział %': wagi * 100, 'Kwota PLN': wagi * kwota})
+                if adj_mc: df_res['Beta (vs SPY)'] = [betas[t] for t in tickers]
+                st.dataframe(df_res.sort_values('Udział %', ascending=False).style.format({'Udział %': '{:.2f}%', 'Kwota PLN': '{:,.2f}', 'Beta (vs SPY)': '{:.2f}'}), hide_index=True, use_container_width=True)
 
             if run_mc:
                 with tabs[1]:
+                    st.subheader("Symulacja Przyszłości (3,000 ścieżek)")
                     n_sims, dt = 3000, 1/252
-                    p_sigma = np.sqrt(np.dot(wagi.T, np.dot(np.log(data_only / data_only.shift(1)).dropna().cov().values, wagi))) * np.sqrt(252)
+                    log_rets = np.log(data_only / data_only.shift(1)).dropna()
+                    p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
+                    
                     col_a, col_b = st.columns(2)
                     plt.style.use("dark_background")
-                    for i, (y, lbl) in enumerate(zip([5, 10], ["5 Lat", "10 Lat"])):
+
+                    for i, (y, lbl) in enumerate(zip([5, 10], ["Horyzont 5 Lat", "Horyzont 10 Lat"])):
                         days = y * 252
                         paths = np.zeros((days, n_sims))
                         curr = np.full(n_sims, float(kwota))
+                        
                         if adj_mc:
                             p_beta = np.sum([betas[t] * wagi[idx] for idx, t in enumerate(tickers)])
                             p_alpha = np.sum([alphas[t] * wagi[idx] for idx, t in enumerate(tickers)]) * (alpha_ret / 100)
@@ -235,16 +262,41 @@ if analizuj:
                             for d in range(days):
                                 curr *= np.exp(mu + p_sigma * np.random.normal(0, 1, n_sims) * np.sqrt(dt))
                                 paths[d, :] = curr
+
+                        final = paths[-1, :]
+                        med = np.median(final)
+                        
                         with (col_a if i == 0 else col_b):
-                            st.write(f"#### PERSPEKTYWA: {lbl}")
-                            st.metric("Mediana", f"{np.median(paths[-1, :]):,.2f} PLN")
-                            fig, ax = plt.subplots()
+                            st.write(f"### {lbl}")
+                            res_stats = pd.DataFrame({
+                                "Metryka": ["Mediana (Statystyczna)", "Prawdopodobieństwo straty", "Średni CAGR (Rocznie)"],
+                                "Wartość": [f"{med:,.2f} PLN", f"{(np.sum(final < kwota)/n_sims)*100:.1f}%", f"{((med/kwota)**(1/y)-1)*100:.2f}%"]
+                            })
+                            st.table(res_stats)
+                            fig, ax = plt.subplots(figsize=(10, 6))
                             ax.plot(paths[:, :50], color='#238636', alpha=0.1)
-                            ax.plot(np.median(paths, axis=1), color='white')
+                            ax.plot(np.median(paths, axis=1), color='white', linewidth=3)
+                            ax.set_title(f"Ścieżki portfela ({lbl})")
                             st.pyplot(fig)
+
             with tabs[2]:
-                fig_c, ax_c = plt.subplots()
-                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', ax=ax_c)
+                st.subheader("Macierz Powiązań (Korelacja)")
+                fig_c, ax_c = plt.subplots(figsize=(12, 8))
+                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c)
                 st.pyplot(fig_c)
+
+            with tabs[3]:
+                st.header("Metodologia i Algorytmy")
+                st.markdown("""
+                **1. Optymalizacja Portfela**
+                Używamy algorytmu SLSQP do minimalizacji różnicy między obecnymi wagami a wagami idealnymi wyznaczonymi przez:
+                - **VaR-First:** $W_i \propto 1 / VaR_i$
+                - **Sortino:** $W_i \propto \text{Sortino Ratio}_i$
+                
+                **2. Symulacja Monte Carlo (GBM)**
+                Modelujemy ceny aktywów przy użyciu Geometrycznego Ruchu Browna:
+                $dS_t = \mu S_t dt + \sigma S_t dW_t$
+                """)
+
         except Exception as e:
-            st.error(f"Błąd: {e}")
+            st.error(f"Błąd krytyczny: {e}")
