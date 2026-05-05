@@ -134,7 +134,7 @@ with st.sidebar:
     else:
         st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
         # TUTAJ WKLEJASZ SWÓJ LINK STRIPE (TYP: ONE-TIME / JEDNORAZOWY)
-        st.link_button("🚀 ODBLOKUJ PRO NA 30 DNI (25 PLN)", "https://buy.stripe.com/twoj_nowy_link_one_time")
+        st.link_button("🚀 ODBLOKUJ PRO NA 30 DNI (25 PLN)", "https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03")
 
     if st.button("Wyloguj"):
         supabase.auth.sign_out()
