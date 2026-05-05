@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 from supabase import create_client, Client
+import datetime  # NOWOŚĆ: do obsługi 30-dniowego dostępu
 
 # --- 1. PANCERNA KONFIGURACJA SUPABASE ---
 url_raw = os.environ.get("SUPABASE_URL")
@@ -63,15 +64,24 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. FUNKCJE POMOCNICZE AUTH ---
-def check_pro_status(email):
+# --- 5. LOGIKA DOSTĘPU CZASOWEGO (PRO NA 30 DNI) ---
+def get_pro_info(email):
+    """Zwraca liczbę pozostałych dni PRO lub -1 jeśli wygasło."""
     try:
-        res = supabase.table("profiles").select("is_pro").eq("email", email).single().execute()
-        return res.data['is_pro'] if res.data else False
+        res = supabase.table("profiles").select("pro_until").eq("email", email).single().execute()
+        if res.data and res.data['pro_until']:
+            # Konwersja czasu z bazy (ISO) na obiekt datetime
+            pro_until = datetime.datetime.fromisoformat(res.data['pro_until'].replace('Z', '+00:00'))
+            now = datetime.datetime.now(datetime.timezone.utc)
+            
+            if pro_until > now:
+                delta = pro_until - now
+                return delta.days + 1  # Zwracamy ile pełnych dni zostało
+        return -1
     except:
-        return False
+        return -1
 
-# --- 6. LOGIKA LOGOWANIA (BRAMKA) ---
+# --- 6. LOGIKA LOGOWANIA ---
 if 'user' not in st.session_state:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -97,11 +107,12 @@ if 'user' not in st.session_state:
                 except Exception as e: st.error(f"Błąd: {e}")
     st.stop()
 
-# --- 7. PO ZALOGOWANIU ---
+# --- 7. LOGIKA PO ZALOGOWANIU ---
 user_email = st.session_state.user.user.email
-is_pro = check_pro_status(user_email)
+days_left = get_pro_info(user_email)
+is_pro = days_left > 0
 
-# PEŁNY DISCLAIMER PRAWNY
+# --- 8. PEŁNY DISCLAIMER PRAWNY ---
 st.markdown("""
     <div class="disclaimer-red">
         <strong>WAŻNE INFORMACJE PRAWNE ORAZ ZASTRZEŻENIA</strong><br>
@@ -111,7 +122,7 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# SIDEBAR (Z PEŁNYMI OPISAMI I LINKIEM DO PŁATNOŚCI)
+# --- 9. SIDEBAR (Z ODPOWIEDNIM LINKIEM STRIPE I LICZNIKIEM) ---
 with st.sidebar:
     try: st.image(v_alpha_icon, width=100)
     except: pass
@@ -119,11 +130,11 @@ with st.sidebar:
     st.write(f"Zalogowany: **{user_email}**")
     
     if is_pro:
-        st.success("💎 STATUS: PRO")
+        st.success(f"💎 STATUS: PRO (Zostało {days_left} dni)")
     else:
         st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
-        # TUTAJ WKLEJASZ SWÓJ LINK STRIPE
-        st.link_button("🚀 ODBLOKUJ PEŁNĄ MOC (25 PLN)", "https://buy.stripe.com/eVqbJ10kz6Y32plf1Gd3i02")
+        # TUTAJ WKLEJASZ SWÓJ LINK STRIPE (TYP: ONE-TIME / JEDNORAZOWY)
+        st.link_button("🚀 ODBLOKUJ PRO NA 30 DNI (25 PLN)", "https://buy.stripe.com/twoj_nowy_link_one_time")
 
     if st.button("Wyloguj"):
         supabase.auth.sign_out()
@@ -170,6 +181,7 @@ with st.sidebar:
     st.divider()
     analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
 
+# --- 10. GŁÓWNA LOGIKA ANALIZY ---
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     if not is_pro and len(tickers) > 5:
