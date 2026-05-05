@@ -221,13 +221,19 @@ if analizuj:
                 if adj_mc: df_out['Beta'] = [betas[t] for t in tickers]
                 st.dataframe(df_out.sort_values('Udział (%)', ascending=False).style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), use_container_width=True, hide_index=True)
 
-            if run_mc:
+          if run_mc:
                 with tabs[1]:
-                    st.subheader("Symulacja Monte Carlo - 3,000 symulacji")
-                    st.info("Wyniki bazują na analizie statystycznej i nie stanowią gwarancji zysku.")
+                    st.subheader("Symulacja Monte Carlo - 3,000 symulacji (Fat Tails Edition)")
+                    st.info("Model: Rozkład t-Studenta (df=4). Uwzględnia ryzyko 'grubych ogonów' (krachy -20% raz na 5 lat).")
+                    
                     n_sims, dt = 3000, 1/252
+                    nu = 4  # Parametr Fat Tails (im mniejszy, tym cięższe ogony)
+                    # Korekta skali, aby wariancja rozkładu t-Studenta wynosiła 1 (do poprawnego skalowania sigmą)
+                    t_scale = np.sqrt((nu - 2) / nu) 
+
                     log_rets = np.log(data_only / data_only.shift(1)).dropna()
                     p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
+                    
                     col_a, col_b = st.columns(2)
                     plt.style.use("dark_background")
 
@@ -235,19 +241,24 @@ if analizuj:
                         days = y * 252
                         paths = np.zeros((days, n_sims))
                         curr = np.full(n_sims, float(kwota))
+                        
                         if adj_mc:
                             p_beta = np.sum([betas[t] * wagi[idx] for idx, t in enumerate(tickers)])
                             p_alpha = np.sum([alphas[t] * wagi[idx] for idx, t in enumerate(tickers)]) * (alpha_ret / 100)
                             t_beta = p_beta
                             for d in range(days):
+                                # ZAMIANA: np.random.normal -> np.random.standard_t
+                                epsilon = np.random.standard_t(df=nu, size=n_sims) * t_scale
                                 mu = (rf_rate + t_beta * (mkt_ret - rf_rate) + p_alpha - 0.5 * (p_sigma**2)) * dt
-                                curr *= np.exp(mu + p_sigma * np.random.normal(0, 1, n_sims) * np.sqrt(dt))
+                                curr *= np.exp(mu + p_sigma * epsilon * np.sqrt(dt))
                                 paths[d, :] = curr
                                 if d % 252 == 0: t_beta = t_beta * (1 - beta_speed) + 1.0 * beta_speed
                         else:
                             mu = (np.sum(daily_rets.mean() * wagi) * 252 - 0.5 * (p_sigma**2)) * dt
                             for d in range(days):
-                                curr *= np.exp(mu + p_sigma * np.random.normal(0, 1, n_sims) * np.sqrt(dt))
+                                # ZAMIANA: np.random.normal -> np.random.standard_t
+                                epsilon = np.random.standard_t(df=nu, size=n_sims) * t_scale
+                                curr *= np.exp(mu + p_sigma * epsilon * np.sqrt(dt))
                                 paths[d, :] = curr
 
                         final = paths[-1, :]
