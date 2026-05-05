@@ -283,15 +283,27 @@ if analizuj:
 
             with tabs[3]:
                 st.header("Metodologia obliczeń i algorytmy")
+                
                 with st.expander("1. Optymalizacja wag portfela", expanded=True):
                     st.markdown("""
-                    **Model VaR-First (Bezpieczeństwo)**: $W_i \\propto \\frac{1 - \\bar{\\rho}_i}{VaR_i^p}$
-                    **Model Sortino (Efektywność)**: $W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\\rho}_i)$
+                    **Model VaR-First (Bezpieczeństwo)**: $W_i \\propto \\frac{1 - \\bar{\rho}_i}{VaR_i^p}$
+                    
+                    **Model Sortino (Efektywność)**: $W_i \\propto \\left(\\frac{R_i - R_f}{\\sigma_{downside}}\\right)^p \\cdot (1 - \\bar{\rho}_i)$
+                    
+                    *Algorytm minimalizuje różnicę między wagami surowymi a docelowymi, uwzględniając korelacje między aktywami.*
                     """)
-                with st.expander("2. Skorygowana Symulacja Monte Carlo (GBM + CAPM)"):
+
+                with st.expander("2. Skorygowana Symulacja Monte Carlo (Fat Tails Engine)", expanded=True):
                     st.markdown("""
-                    **CAPM + Alfa**: $E(R_i) = R_f + \\beta_i(E(R_m) - R_f) + \\alpha \\cdot \\text{retention}$
-                    **Korekta Dryfu**: $$\\mu_{adj} = E(R_i) - \\frac{1}{2}\\sigma^2$$
-                    **Geometryczny Ruch Browna**: $P_{t+1} = P_t \\cdot e^{(\\mu_{adj} \\Delta t + \\sigma \\epsilon \\sqrt{\\Delta t})}$
+                    **Model Rozkładu**: $t$-Studenta ($\\\\nu=4$)
+                    
+                    W odróżnieniu od standardowych modeli opartych na rozkładzie Gaussa, vAlpha wykorzystuje **rozkład $t$-Studenta**. Pozwala to na modelowanie tzw. **"grubych ogonów" (Fat Tails)**, czyli zdarzeń ekstremalnych, które na giełdzie występują znacznie częściej, niż zakłada tradycyjna statystyka (np. krachy -20%).
+                    
+                    **Kluczowe równania**:
+                    1. **CAPM + Alfa**: $E(R_i) = R_f + \\beta_i(E(R_m) - R_f) + \\alpha \\cdot \\text{retention}$
+                    2. **Korekta Dryfu**: $\\mu_{adj} = E(R_i) - \\frac{1}{2}\\sigma^2$
+                    3. **Geometryczny Ruch Browna (Fat Tails)**: $P_{t+1} = P_t \\cdot e^{(\\mu_{adj} \\Delta t + \\sigma \\cdot \\epsilon_t \\sqrt{\\Delta t})}$
+                    
+                    *Gdzie $\\epsilon_t$ jest losowane z rozkładu t-Studenta, co symuluje realizm rynkowy (korekty rzędu -20% raz na 5 lat).*
                     """)
         except Exception as e: st.error(f"Błąd: {e}")
