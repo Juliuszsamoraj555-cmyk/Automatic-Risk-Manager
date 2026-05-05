@@ -117,7 +117,7 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# --- 9. SIDEBAR (Z AUTOMATYCZNYM LINKIEM) ---
+# --- 9. SIDEBAR (Z AUTOMATYCZNYM LINKIEM I SMART CONSTRAINTS) ---
 with st.sidebar:
     try: st.image(v_alpha_icon, width=100)
     except: pass
@@ -128,7 +128,6 @@ with st.sidebar:
         st.success(f"💎 STATUS: PRO (Zostało {days_left} dni)")
     else:
         st.warning("🆓 STATUS: FREE (Limit: 5 spółek)")
-        # --- NOWOŚĆ: Automatyczne przekazywanie maila do Stripe ---
         stripe_base_url = "https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03"
         stripe_url_with_email = f"{stripe_base_url}?prefilled_email={user_email}"
         st.link_button("🚀 ODBLOKUJ PRO NA 30 DNI (25 PLN)", stripe_url_with_email)
@@ -139,19 +138,43 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    # ... reszta konfiguracji portfela (kod bez zmian jak wyżej) ...
+    st.subheader("⚙️ Konfiguracja Portfela")
+    
     tickers_input = st.text_input("Symbole spółek (ticker):", "AAPL, MSFT, NVDA, TSLA, AMZN")
     kwota = st.number_input("Kapitał początkowy (PLN):", value=25000)
+    
+    st.divider()
+    st.subheader("⚖️ Modelowanie i Reguły")
     opt_mode = st.radio("Model Optymalizacji:", ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"])
     ryzyko_val = st.select_slider("Profil Ryzyka:", options=['low', 'medium', 'high'], value='medium')
+    
     limit_2x = st.checkbox("Wymuś dywersyfikację (Limit 2x)", value=True)
+
+    # --- NOWOŚĆ: SMART CONSTRAINTS (TYLKO PRO) ---
+    st.write("---")
+    label_min = "📍 Minimalny udział (np. NVDA:10)"
+    if not is_pro:
+        label_min += " 🔒"
+        st.caption("Funkcja *Smart Constraints* dostępna tylko w wersji PRO.")
+    
+    constraints_input = st.text_input(
+        label_min, 
+        placeholder="TICKER:PROCENT", 
+        disabled=not is_pro,
+        help="Wymuś minimalną wagę dla konkretnej spółki. Przykład: NVDA:15, AAPL:5"
+    )
+
+    st.divider()
+    st.subheader("🎲 Symulacja i Ryzyko")
     run_mc = st.checkbox("Wykonaj symulacje Monte Carlo", value=True)
     
     adj_mc = False
     if run_mc:
-        label_adj = "Skorygowana symulacja Monte Carlo"
-        if not is_pro: label_adj += " (Wymaga PRO)"
+        label_adj = "Skorygowane Fat Tails Engine"
+        if not is_pro: label_adj += " 🔒"
+        
         adj_mc = st.checkbox(label_adj, value=False, disabled=not is_pro)
+        
         if adj_mc and is_pro:
             with st.expander("PARAMETRY RYNKOWE CAPM / GBM", expanded=True):
                 rf_rate = st.number_input("Stopa wolna od ryzyka (Rf %):", value=4.0) / 100
@@ -160,7 +183,7 @@ with st.sidebar:
                 beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05)
 
     st.divider()
-    analizuj = st.button("URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
+    analizuj = st.button("🚀 URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     if not is_pro and len(tickers) > 5:
