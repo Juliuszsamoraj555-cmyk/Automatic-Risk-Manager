@@ -185,7 +185,24 @@ with st.sidebar:
     st.divider()
     analizuj = st.button("🚀 URUCHOM PEŁNĄ ANALIZĘ SYSTEMOWĄ")
 if analizuj:
-    tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
+   tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
+    
+    # --- NOWA LOGIKA LIMITÓW ---
+    min_bounds = {t: 0.01 for t in tickers} 
+    if constraints_input and is_pro: # constraints_input to nazwa z Twojego nowego Sidebaru
+        parts = [p.strip() for p in constraints_input.split(',')]
+        for p in parts:
+            try:
+                t_name, val = p.split(':')
+                t_name = t_name.strip().upper()
+                if t_name in min_bounds:
+                    min_bounds[t_name] = float(val) / 100
+            except:
+                st.warning(f"Błędny format limitu: {p}")
+        
+        if sum(min_bounds.values()) > 1.0:
+            st.error("Suma minimalnych udziałów przekracza 100%! Zmniejsz limity spółek.")
+            st.stop() # Zatrzymuje dalsze obliczenia przy błędzie
     if not is_pro and len(tickers) > 5:
         st.error(f"Wersja FREE obsługuje do 5 spółek. Twoja lista ma {len(tickers)} pozycji.")
     else:
@@ -224,8 +241,13 @@ if analizuj:
                 target_w_raw = (sortino.clip(lower=0) ** {'low': 0.5, 'medium': 1.0, 'high': 1.5}[ryzyko_val]) * (1 - corr_matrix.mean())
 
             target_w = target_w_raw / target_w_raw.sum()
+            
+            # NOWE: Definicja granic na podstawie min_bounds
+            custom_bounds = [(min_bounds[t], 1.0) for t in tickers]
+
             res = minimize(lambda w: np.sum((w - target_w.values)**2), target_w.values, 
-                           method='SLSQP', bounds=[(0.01, 1.0)]*len(tickers), 
+                           method='SLSQP', 
+                           bounds=custom_bounds, # PODMIENIONE Z: [(0.01, 1.0)]*len(tickers)
                            constraints=[{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}] + 
                            ([{'type': 'ineq', 'fun': lambda w: 2 * np.min(w) - np.max(w)}] if limit_2x else []))
             wagi = res.x
