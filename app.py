@@ -221,7 +221,7 @@ if analizuj:
                 if adj_mc: df_out['Beta'] = [betas[t] for t in tickers]
                 st.dataframe(df_out.sort_values('Udział (%)', ascending=False).style.format({'Udział (%)': '{:.2f}%', 'Kwota': '{:,.2f}', 'Beta': '{:.2f}'}), use_container_width=True, hide_index=True)
 
-          if run_mc:
+ if run_mc:
                 with tabs[1]:
                     st.subheader("Symulacja Monte Carlo - 3,000 symulacji (Fat Tails Edition)")
                     st.info("Model: Rozkład t-Studenta (df=4). Uwzględnia ryzyko 'grubych ogonów' (krachy -20% raz na 5 lat).")
