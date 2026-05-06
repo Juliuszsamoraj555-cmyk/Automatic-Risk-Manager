@@ -5,94 +5,127 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
 
+# 1. IMPORTY TWOICH MODUŁÓW
 import styles
 import database
 import engine
-# 2. TO MUSI BYĆ PIERWSZA KOMENDA STREAMLIT W PLIKU!
+
+# 2. KONFIGURACJA STRONY (Musi być pierwszą komendą Streamlit!)
 try:
     v_alpha_icon = Image.open('image_8.png')
     st.set_page_config(page_title="vAlpha Manager", page_icon=v_alpha_icon, layout="wide")
 except:
     st.set_page_config(page_title="vAlpha Manager", layout="wide")
 
-# --- INICJALIZACJA ---
+# 3. INICJALIZACJA STYLÓW I BAZY
 styles.apply_custom_css()
 supabase = database.init_supabase()
 
+# --- 4. LOGIKA DOSTĘPU (FREEMIUM) ---
+# Sprawdzamy stan sesji. Jeśli nie ma 'user', ustawiamy flagi na False zamiast blokować stronę.
+is_logged_in = 'user' in st.session_state
 
-# --- LOGOWANIE ---
-if 'user' not in st.session_state:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.title("🚀 vAlpha Terminal")
-        t1, t2 = st.tabs(["Logowanie", "Rejestracja"])
-        with t1:
-            m = st.text_input("E-mail")
-            p = st.text_input("Hasło", type="password")
-            if st.button("Zaloguj"):
-                try:
-                    res = supabase.auth.sign_in_with_password({"email": m, "password": p})
-                    st.session_state.user = res
-                    st.rerun()
-                except: st.error("Błąd logowania.")
-    st.stop()
+if is_logged_in:
+    user_email = st.session_state.user.user.email
+    days_left = database.get_pro_days(supabase, user_email)
+    is_pro = days_left > 0
+else:
+    user_email = "Gość"
+    days_left = -1
+    is_pro = False
 
-user_email = st.session_state.user.user.email
-days_left = database.get_pro_days(supabase, user_email)
-is_pro = days_left > 0
-
-# --- SIDEBAR ---
+# --- SIDEBAR (LOGOWANIE + KONFIGURACJA) ---
 with st.sidebar:
     st.title("vAlpha Manager")
-    if is_pro: st.success(f"💎 PRO: {days_left} dni")
-    else: st.warning("🆓 FREE"); st.link_button("🚀 KUP PRO", f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}")
     
+    if not is_logged_in:
+        # SEKCJA DLA GOŚCIA
+        st.info("Zaloguj się, aby odblokować zaawansowane modele.")
+        with st.popover("🔑 Zaloguj / Rejestracja", use_container_width=True):
+            tab_l, tab_r = st.tabs(["Logowanie", "Rejestracja"])
+            with tab_l:
+                m = st.text_input("E-mail", key="l_mail")
+                p = st.text_input("Hasło", type="password", key="l_pw")
+                if st.button("Zaloguj", use_container_width=True):
+                    try:
+                        res = supabase.auth.sign_in_with_password({"email": m, "password": p})
+                        st.session_state.user = res
+                        st.rerun()
+                    except: st.error("Błąd danych.")
+            with tab_r:
+                rm = st.text_input("E-mail", key="r_mail")
+                rp = st.text_input("Hasło", type="password", key="r_pw")
+                if st.button("Załóż konto", use_container_width=True):
+                    try:
+                        supabase.auth.sign_up({"email": rm, "password": rp})
+                        st.success("Konto utworzone! Potwierdź maila.")
+                    except: st.error("Błąd rejestracji.")
+    else:
+        # SEKCJA DLA ZALOGOWANEGO
+        st.write(f"Witaj: **{user_email}**")
+        if is_pro:
+            st.success(f"💎 STATUS: PRO ({days_left} dni)")
+        else:
+            st.warning("🆓 STATUS: FREE")
+            st.link_button("🚀 ODBLOKUJ PRO", f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}")
+        if st.button("Wyloguj", use_container_width=True):
+            del st.session_state.user
+            st.rerun()
+
+    st.divider()
+    
+    # --- INPUTY STANDARDOWE ---
     tickers_input = st.text_input("Tickery:", "AAPL, MSFT, NVDA, TSLA, AMZN")
     kwota = st.number_input("Kapitał (PLN):", value=25000)
     opt_mode = st.radio("Model:", ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"])
     ryzyko_val = st.select_slider("Ryzyko:", options=['low', 'medium', 'high'])
     limit_2x = st.checkbox("Limit dywersyfikacji (2x)", value=True)
-    constraints_input = st.text_input("📍 Min. udział (PRO)", placeholder="NVDA:10", disabled=not is_pro)
     
+    # --- BLOKADA FUNKCJI PRO (UI) ---
+    label_min = "📍 Min. udział (PRO) 🔒" if not is_pro else "📍 Min. udział (PRO) 💎"
+    constraints_input = st.text_input(label_min, placeholder="NVDA:10", disabled=not is_pro)
+    
+    st.divider()
     run_mc = st.checkbox("Symulacje Monte Carlo", value=True)
-    adj_mc = st.checkbox("Fat Tails Engine", value=False, disabled=not is_pro)
     
-    # DEFINIUJEMY DOMYŚLNE WARTOŚCI (żeby zawsze istniały)
-    rf_rate = 0.04
-    mkt_ret = 0.10
-    alpha_ret = 30
-    beta_speed = 0.05
+    label_adj = "Fat Tails Engine 🔒" if not is_pro else "Fat Tails Engine 💎"
+    adj_mc_checkbox = st.checkbox(label_adj, value=False)
+    
+    # Bezpiecznik: adj_mc musi być False, jeśli nie ma PRO
+    adj_mc = False
+    rf_rate, mkt_ret, alpha_ret, beta_speed = 0.04, 0.10, 30.0, 0.05
 
-    if adj_mc and is_pro:
-        with st.expander("PARAMETRY RYNKOWE", expanded=False):
-            rf_rate = st.number_input("Rf % (Stopa wolna od ryzyka):", value=4.0) / 100
-            mkt_ret = st.number_input("Rm % (Oczekiwany zwrot rynku):", value=10.0) / 100
-            alpha_ret = st.slider("Alfa % (Utrzymanie przewagi):", 0, 100, 30)
-            beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05)
+    if adj_mc_checkbox:
+        if is_pro:
+            adj_mc = True
+            with st.expander("PARAMETRY RYNKOWE", expanded=False):
+                rf_rate = st.number_input("Rf %:", value=4.0) / 100
+                mkt_ret = st.number_input("Rm %:", value=10.0) / 100
+                alpha_ret = st.slider("Alfa %:", 0, 100, 30)
+                beta_speed = st.slider("Beta Speed:", 0.0, 0.2, 0.05)
+        else:
+            st.warning("Ta funkcja wymaga konta PRO.")
 
     analizuj = st.button("🚀 URUCHOM ANALIZĘ")
 
-# --- 5. LOGIKA ANALIZY (w app.py) ---
+# --- LOGIKA ANALIZY (FREEMIUM ENFORCEMENT) ---
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     
-    # 1. Sprawdzenie limitu wersji FREE
+    # 1. Limit 5 spółek dla darmowych
     if not is_pro and len(tickers) > 5:
-        st.error("Wersja FREE obsługuje do 5 spółek. Twoja lista ma więcej pozycji.")
+        st.error("Wersja FREE obsługuje do 5 spółek.")
         st.stop()
 
-    # 2. Parsowanie limitów (Smart Constraints)
+    # 2. Inicjalizacja limitów (constraints tylko dla PRO)
     min_bounds = {t: 0.01 for t in tickers}
     if constraints_input and is_pro:
         for p in constraints_input.split(','):
             try:
-                t, v = p.split(':')
-                tk = t.strip().upper()
+                tk, v = p.split(':')
+                tk = tk.strip().upper()
                 if tk in min_bounds: min_bounds[tk] = float(v)/100
-            except: st.warning(f"Błędny format limitu: {p}")
-        if sum(min_bounds.values()) > 1.0:
-            st.error("Suma minimalnych udziałów przekracza 100%!")
-            st.stop()
+            except: pass
 
     # 3. PROCES ANALIZY
     with st.spinner('Pobieranie danych rynkowych i przeliczanie...'):
