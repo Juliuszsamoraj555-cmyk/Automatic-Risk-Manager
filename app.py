@@ -108,21 +108,61 @@ with st.sidebar:
     st.divider()
     
     # --- INPUTY STANDARDOWE ---
-    tickers_input = st.text_input("Tickery:", "AAPL, MSFT, NVDA, TSLA, AMZN")
+    tickers_input = st.text_input(
+        "Symbole spółek (Tickery):", 
+        "AAPL, MSFT, NVDA, TSLA, AMZN",
+        help="""
+        ### 🔍 Jak wpisywać symbole?
+        Wprowadź listę aktywów oddzieloną przecinkami. System pobiera dane z **Yahoo Finance**.
+
+        **Przykłady dla rynków:**
+        * 🇺🇸 **USA (Nasdaq/NYSE):** Sam symbol, np. `AAPL`, `MSFT`, `NVDA`.
+        * 🇵🇱 **Polska (GPW):** Symbol z końcówką `.WA`, np. `PKO.WA`, `ALE.WA`, `CDR.WA`.
+        * 🇪🇺 **Europa:** Końcówki `.DE` (Niemcy), `.PA` (Francja), `.L` (Londyn).
+        * ₿ **Krypto:** Pary z USD, np. `BTC-USD`, `ETH-USD`.
+
+        ---
+         *Wskazówka: Jeśli nie znasz tickera, sprawdź go na finance.yahoo.com.*
+        """
+    )
+    
     kwota = st.number_input("Kapitał (PLN):", value=25000)
-    opt_mode = st.radio("Model:", ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"])
+    opt_mode = st.radio(
+        "Model Optymalizacji:", 
+        ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
+        help="VaR-First: Minimalizuje ryzyko nagłej straty. Sortino: Szuka najlepszego stosunku zysku do ryzyka."
+    )
     ryzyko_val = st.select_slider("Ryzyko:", options=['low', 'medium', 'high'])
-    limit_2x = st.checkbox("Limit dywersyfikacji (2x)", value=True)
+    limit_2x = st.checkbox(
+    "Limit dywersyfikacji (2x)", 
+    value=True,
+    help="""
+    ### Bezpiecznik portfela
+    Sprawia, iż największa pozycja w portfelu może być maksymalnie dwukrotnonie większa od najmniejszej pozycji. Ma to na celu ograniczyć ryzyko specyficzne.
+    """
+)
     
     # --- BLOKADA FUNKCJI PRO (UI) ---
-    label_min = "📍 Min. udział (PRO) 🔒" if not is_pro else "📍 Min. udział (PRO) 💎"
+    label_min = "📍 Min. udział (PRO) 🔒" if not is_pro else "📍 Min. udział (PRO) "
     constraints_input = st.text_input(label_min, placeholder="NVDA:10", disabled=not is_pro)
+    help="""
+        ### Minimalny udział 
+        Jeśli chcesz aby jakieś aktywo stanowiło minimalnie jakąś część twojego portfolio - wpisz ticker:wartość procentowa
+        """
+    )
     
     st.divider()
-    run_mc = st.checkbox("Symulacje Monte Carlo", value=True)
+    run_mc = st.checkbox(
+        "Symulacje Monte Carlo", 
+        value=True,
+        help="Uruchamia 3000 losowych scenariuszy stóp zwrotu, aby sprawdzić, co może stać się z Twoim portfelem. Bez dodatkowych założeń jest ona bardzo teoretyczna."
     
     label_adj = "Fat Tails Engine 🔒" if not is_pro else "Fat Tails Engine 💎"
-    adj_mc_checkbox = st.checkbox(label_adj, value=False)
+    adj_mc_checkbox = st.checkbox(
+        label_adj, 
+        value=False,
+        help="Skorygowana symulacja Monte Carlo stosująca zamiast rozkładu normalnego Gaussa rozkład t-Studenta, opierająca się na modelu CAPM, Beta Decay oraz Alfie"
+    )
     
     # Bezpiecznik: adj_mc musi być False, jeśli nie ma PRO
     adj_mc = False
@@ -132,10 +172,26 @@ with st.sidebar:
         if is_pro:
             adj_mc = True
             with st.expander("PARAMETRY RYNKOWE", expanded=False):
-                rf_rate = st.number_input("Rf %:", value=4.0) / 100
-                mkt_ret = st.number_input("Rm %:", value=10.0) / 100
-                alpha_ret = st.slider("Alfa %:", 0, 100, 30)
-                beta_speed = st.slider("Beta Speed:", 0.0, 0.2, 0.05)
+                rf_rate = st.number_input(
+                "Rf % (Risk-free):", 
+                value=4.0,
+                help="Stopa wolna od ryzyka (najczęściej przyjmowana jako rentowność 10-letnich obligacji skarbowych)."
+            ) / 100
+                mkt_ret = st.number_input(
+                "Rm % (Oczekiwany zwrot rynku):", 
+                value=10.0,
+                help="Średni roczny zwrot z szerokiego indeksu (np. S&P 500)."
+            ) / 100
+                alpha_ret = st.slider(
+                "Alfa % (Przewaga):", 
+                0, 100, 30,
+                help="Ile % dotychczasowej przewagi utzyma twój portfel nad rynkiem."
+            )
+                beta_speed = st.slider(
+                "Stabilizacja Bety:", 
+                0.0, 0.2, 0.05,
+                help="Szybkość, z jaką Beta portfela dąży do średniej rynkowej w czasie symulacji. Im wyżej, tym szybciej portfel upodabnia się do rynku."
+            )
         else:
             st.warning("Ta funkcja wymaga konta PRO.")
 
@@ -203,10 +259,21 @@ if analizuj:
             with t1:
                 st.subheader("Rekomendowana Alokacja")
                 p_var = (wagi * monthly_vars).sum()
+                
                 c1, c2, c3 = st.columns(3)
+                
+                # METRYKA 1: VaR
                 c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
-                c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
+                c1.caption("Istnieje 95% prawdopodobieństwa, że miesięcznie twój portfel nie straci więcej niż tą wartość procentową.")
+                
+                # METRYKA 2: Korelacja
+                avg_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean()
+                c2.metric("Średnia Korelacja", f"{avg_corr:.2f}")
+                c2.caption("Korelacja cenowa aktywów - im wyższa tym większa korelacja.")
+                
+                # METRYKA 3: Ryzyko w PLN
                 c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.0f} PLN")
+                c3.caption("Istnieje 95% prawdopodobieństwa, że miesięcznie twój portfel nie straci więcej niż tą wartość.")
                 
                 df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi*100, 'PLN': wagi*kwota})
                 st.dataframe(df_out.sort_values('Udział (%)', ascending=False).style.format({
