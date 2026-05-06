@@ -122,7 +122,7 @@ if analizuj:
                     hide_index=True
                 )
 
-           with t2:
+            with t2:
                 if run_mc:
                     # 1. WYWOŁANIE SILNIKA
                     # Przekazujemy komplet danych. Jeśli adj_mc jest False, r_f itd. są zerami, 
