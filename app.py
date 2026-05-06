@@ -71,6 +71,7 @@ with st.sidebar:
 if analizuj:
     tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     
+    # Logika limitów (bez zmian)
     if not is_pro and len(tickers) > 5:
         st.error("Wersja FREE obsługuje do 5 spółek.")
         st.stop()
@@ -84,14 +85,17 @@ if analizuj:
                 if tk in min_bounds: min_bounds[tk] = float(v)/100
             except: pass
 
-    with st.spinner('Analizowanie...'):
+    with st.spinner('Trwa analiza systemowa...'):
         try:
+            # Pobieranie danych
             data = engine.get_data(tuple(tickers + (["SPY"] if adj_mc else [])))
-            if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(-1)
+            if isinstance(data.columns, pd.MultiIndex): 
+                data.columns = data.columns.get_level_values(-1)
             
             data_only = data[tickers]
             daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
             
+            # Logika beta (bez zmian)
             if adj_mc:
                 spy_rets = data["SPY"].pct_change().dropna()
                 betas = []
@@ -101,35 +105,83 @@ if analizuj:
                     betas.append(b)
                 market_params['beta'] = np.mean(betas)
 
+            # Optymalizacja wag
             wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
 
-            # TABY Z WYNIKAMI
-            t1, t2, t3, t4 = st.tabs(["Portfel", "Monte Carlo", "Korelacja", "Metodologia"])
+            # Definicja Tabów
+            t1, t2, t3, t4 = st.tabs(["Struktura Portfela", "Monte Carlo", "Korelacja", "Metodologia"])
             
             with t1:
-                st.subheader("Optymalna Struktura")
+                st.subheader("Rekomendowana Alokacja")
                 p_var = (wagi * monthly_vars).sum()
                 c1, c2, c3 = st.columns(3)
-                c1.metric("Miesięczny VaR", f"{p_var*100:.2f}%")
+                c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
                 c2.metric("Średnia Korelacja", f"{corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean():.2f}")
-                c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.0f}")
-                st.dataframe(pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi*100, 'PLN': wagi*kwota}), use_container_width=True)
+                c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.0f} PLN")
+                
+                # Sformatowana tabela wyników
+                df_out = pd.DataFrame({
+                    'Ticker': tickers, 
+                    'Udział (%)': wagi * 100, 
+                    'PLN': wagi * kwota
+                })
+                
+                st.dataframe(
+                    df_out.sort_values('Udział (%)', ascending=False).style.format({
+                        'Udział (%)': '{:.2f}%',
+                        'PLN': '{:,.2f} PLN'
+                    }), 
+                    use_container_width=True, 
+                    hide_index=True
+                )
 
             with t2:
                 if run_mc:
-                    mc_results = engine.run_monte_carlo(data_only, wagi, kwota, adj_mc, market_params)
+                    mc_data = engine.run_monte_carlo(data_only, wagi, kwota, adj_mc, market_params)
                     col_a, col_b = st.columns(2)
-                    for i, (y, lbl) in enumerate(zip([5, 10], ["5 Lat", "10 Lat"])):
-                        paths = mc_results[y]
-                        final = paths[-1, :]
-                        with (col_a if i==0 else col_b):
+                    
+                    # Ustawienie globalnego stylu wykresów
+                    plt.style.use("dark_background")
+
+                    for i, (y, lbl) in enumerate(zip([5, 10], ["PERSPEKTYWA: 5 LAT", "PERSPEKTYWA: 10 LAT"])):
+                        paths = mc_data[y]['paths']
+                        stats_df = mc_data[y]['stats']
+                        
+                        with (col_a if i == 0 else col_b):
                             st.write(f"#### {lbl}")
-                            st.write(f"Mediana: **{np.median(final):,.0f} PLN**")
-                            fig, ax = plt.subplots()
-                            ax.plot(paths[:, :50], alpha=0.1, color='#238636')
-                            ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
-                            plt.style.use("dark_background")
+                            # Wyświetlenie tabeli statystyk (95p, Mediana, 5p, CAGR itd.)
+                            st.table(stats_df) 
+                            
+                            # Wykres symulacji
+                            fig, ax = plt.subplots(figsize=(10, 6))
+                            # Rysowanie 50 przykładowych ścieżek
+                            ax.plot(paths[:, :50], alpha=0.15, color='#238636') 
+                            # Rysowanie linii mediany
+                            ax.plot(np.median(paths, axis=1), color='white', linewidth=3, label="Mediana")
+                            
+                            # Estetyka wykresu
+                            ax.set_facecolor('#0d1117')
+                            fig.patch.set_facecolor('#0d1117')
+                            ax.set_ylabel("Wartość Portfela (PLN)")
+                            ax.set_xlabel("Dni handlowe")
                             st.pyplot(fig)
+                else:
+                    st.info("Symulacje Monte Carlo są wyłączone w ustawieniach.")
+
+            with t3:
+                st.subheader("Macierz Korelacji")
+                st.heatmap(corr_matrix) # Przykład - możesz użyć sns.heatmap lub st.write
+
+            with t4:
+                st.subheader("Metodologia Obliczeń")
+                st.markdown("""
+                * **Model:** Geometric Brownian Motion z rozkładem t-Studenta (Fat Tails).
+                * **Optymalizacja:** Minimalizacja odchylenia od wag idealnych (SLSQP).
+                * **Risk Adjustment:** Uwzględnienie współczynnika Beta względem rynku (SPY).
+                """)
+
+        except Exception as e:
+            st.error(f"Wystąpił błąd podczas analizy: {e}")
 
             with t3:
                 fig_c, ax_c = plt.subplots()
