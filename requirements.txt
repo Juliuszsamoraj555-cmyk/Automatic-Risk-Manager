@@ -5,5 +5,5 @@ numpy
 scipy
 seaborn
 matplotlib
-pillow
 supabase
+Pillow
