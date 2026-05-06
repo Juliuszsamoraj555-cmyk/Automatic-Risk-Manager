@@ -8,6 +8,12 @@ from PIL import Image
 import styles
 import database
 import engine
+# 2. TO MUSI BYĆ PIERWSZA KOMENDA STREAMLIT W PLIKU!
+try:
+    v_alpha_icon = Image.open('image_8.png')
+    st.set_page_config(page_title="vAlpha Manager", page_icon=v_alpha_icon, layout="wide")
+except:
+    st.set_page_config(page_title="vAlpha Manager", layout="wide")
 
 # --- INICJALIZACJA ---
 styles.apply_custom_css()
