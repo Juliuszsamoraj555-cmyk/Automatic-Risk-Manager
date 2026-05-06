@@ -19,11 +19,6 @@ except:
 styles.apply_custom_css()
 supabase = database.init_supabase()
 
-try:
-    v_alpha_icon = Image.open('image_8.png')
-    st.set_page_config(page_title="vAlpha Manager", page_icon=v_alpha_icon, layout="wide")
-except:
-    st.set_page_config(page_title="vAlpha Manager", layout="wide")
 
 # --- LOGOWANIE ---
 if 'user' not in st.session_state:
