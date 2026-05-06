@@ -41,64 +41,69 @@ with st.sidebar:
     if not is_logged_in:
         # --- SEKCJA DLA GOŚCIA ---
         st.info("Zaloguj się, aby odblokować zaawansowane modele.")
+        
         with st.popover("🔑 Zaloguj / Rejestracja", use_container_width=True):
             tab_l, tab_r = st.tabs(["Logowanie", "Rejestracja"])
-    
-    with tab_l:
-        # Rezygnujemy z przypisywania m = st.text_input. 
-        # Streamlit sam zapisze wartości pod kluczami "l_mail" i "l_pw".
-        st.text_input("E-mail", key="l_mail")
-        st.text_input("Hasło", type="password", key="l_pw")
-        
-        if st.button("Zaloguj", use_container_width=True):
-            # Pobieramy wartości bezpośrednio ze stanu sesji w momencie kliknięcia
-            email_val = st.session_state.get("l_mail")
-            pass_val = st.session_state.get("l_pw")
             
-            if email_val and pass_val:
-                try:
-                    res = supabase.auth.sign_in_with_password({
-                        "email": email_val, 
-                        "password": pass_val
-                    })
-                    st.session_state.user = res
-                    st.success("Zalogowano! Przeładowuję...")
-                    st.rerun()
-                except Exception as e:
-                    st.error("Błąd danych. Sprawdź e-mail i hasło.")
-            else:
-                st.warning("Wprowadź dane logowania.")
+            # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
+            with tab_l:
+                st.text_input("E-mail", key="l_mail")
+                st.text_input("Hasło", type="password", key="l_pw")
+                
+                if st.button("Zaloguj", use_container_width=True):
+                    email_val = st.session_state.get("l_mail")
+                    pass_val = st.session_state.get("l_pw")
+                    
+                    if email_val and pass_val:
+                        try:
+                            res = supabase.auth.sign_in_with_password({
+                                "email": email_val, 
+                                "password": pass_val
+                            })
+                            st.session_state.user = res
+                            st.success("Zalogowano!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error("Błąd danych. Sprawdź e-mail i hasło.")
+                    else:
+                        st.warning("Wprowadź dane logowania.")
 
-    with tab_r:
-        st.text_input("E-mail", key="r_mail")
-        st.text_input("Hasło", type="password", key="r_pw")
-        
-        if st.button("Załóż konto", use_container_width=True):
-            email_reg = st.session_state.get("r_mail")
-            pass_reg = st.session_state.get("r_pw")
-            
-            if email_reg and pass_reg:
-                try:
-                    supabase.auth.sign_up({
-                        "email": email_reg, 
-                        "password": pass_reg
-                    })
-                    st.success("Konto utworzone! Potwierdź maila (sprawdź SPAM).")
-                except:
-                    st.error("Błąd rejestracji. Hasło musi mieć min. 6 znaków.")
-            else:
-                st.warning("Uzupełnij pola rejestracji.")
+            with tab_r:
+                st.text_input("E-mail", key="r_mail")
+                st.text_input("Hasło", type="password", key="r_pw")
+                
+                if st.button("Załóż konto", use_container_width=True):
+                    email_reg = st.session_state.get("r_mail")
+                    pass_reg = st.session_state.get("r_pw")
+                    
+                    if email_reg and pass_reg:
+                        try:
+                            supabase.auth.sign_up({
+                                "email": email_reg, 
+                                "password": pass_reg
+                            })
+                            st.success("Konto utworzone! Potwierdź maila.")
+                        except:
+                            st.error("Błąd rejestracji. Hasło min. 6 znaków.")
+                    else:
+                        st.warning("Uzupełnij pola rejestracji.")
+    
     else:
-        # SEKCJA DLA ZALOGOWANEGO
+        # --- SEKCJA DLA ZALOGOWANEGO ---
+        # Ten blok musi być wyrównany do 'if not is_logged_in'
         st.write(f"Witaj: **{user_email}**")
+        
         if is_pro:
             st.success(f"💎 STATUS: PRO ({days_left} dni)")
         else:
             st.warning("🆓 STATUS: FREE")
             st.link_button("🚀 ODBLOKUJ PRO", f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}")
+        
         if st.button("Wyloguj", use_container_width=True):
-            del st.session_state.user
+            if "user" in st.session_state:
+                del st.session_state.user
             st.rerun()
+
 
     st.divider()
     
