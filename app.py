@@ -42,7 +42,7 @@ with st.sidebar:
         # --- SEKCJA DLA GOŚCIA ---
         st.info("Zaloguj się, aby odblokować zaawansowane modele.")
         with st.popover("🔑 Zaloguj / Rejestracja", use_container_width=True):
-        tab_l, tab_r = st.tabs(["Logowanie", "Rejestracja"])
+            tab_l, tab_r = st.tabs(["Logowanie", "Rejestracja"])
     
     with tab_l:
         # Rezygnujemy z przypisywania m = st.text_input. 
