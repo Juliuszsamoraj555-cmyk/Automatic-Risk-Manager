@@ -57,38 +57,34 @@ with st.sidebar:
     run_mc = st.checkbox("Symulacje Monte Carlo", value=True)
     adj_mc = st.checkbox("Fat Tails Engine", value=False, disabled=not is_pro)
     
-    market_params = {'rf': 0.04, 'rm': 0.10, 'alpha': 0.3, 'speed': 0.05}
+    # DEFINIUJEMY DOMYŚLNE WARTOŚCI (żeby zawsze istniały)
+    rf_rate = 0.04
+    mkt_ret = 0.10
+    alpha_ret = 30
+    beta_speed = 0.05
+
     if adj_mc and is_pro:
         with st.expander("PARAMETRY RYNKOWE", expanded=False):
-            market_params['rf'] = st.number_input("Rf %:", value=4.0) / 100
-            market_params['rm'] = st.number_input("Rm %:", value=10.0) / 100
-            market_params['alpha'] = st.slider("Alfa %:", 0, 100, 30) / 100
-            market_params['speed'] = st.slider("Beta Speed:", 0.0, 0.2, 0.05)
+            rf_rate = st.number_input("Rf % (Stopa wolna od ryzyka):", value=4.0) / 100
+            mkt_ret = st.number_input("Rm % (Oczekiwany zwrot rynku):", value=10.0) / 100
+            alpha_ret = st.slider("Alfa % (Utrzymanie przewagi):", 0, 100, 30)
+            beta_speed = st.slider("Szybkość stabilizacji Bety:", 0.0, 0.2, 0.05)
 
     analizuj = st.button("🚀 URUCHOM ANALIZĘ")
 
 # --- ANALIZA (w app.py) ---
 if analizuj:
-    tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
-    # ... (logika limitów bez zmian) ...
-
+    # ... (tickers, pobieranie danych itp.) ...
+    
     with st.spinner('Analizowanie...'):
         try:
-            # Pobieramy dane (SPY tylko jeśli adj_mc jest True)
-            fetch_list = tickers + (["SPY"] if adj_mc else [])
-            data = engine.get_data(tuple(fetch_list))
-            if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(-1)
-            
+            # 1. Pobieranie statystyk
             data_only = data[tickers]
             daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
             
-            # Przygotowujemy zmienne dla silnika (nawet puste, jeśli nie ma adj_mc)
+            # 2. Logika Bety i Alfy (jeśli Fat Tails Engine jest włączony)
             betas, alphas = {}, {}
-            # Domyślne wartości, żeby funkcja nie "wybuchła"
-            r_f, m_r, a_r, b_s = 0.0, 0.0, 0.0, 0.0 
-
             if adj_mc:
-                r_f, m_r, a_r, b_s = rf_rate, mkt_ret, alpha_ret, beta_speed
                 spy_rets = data["SPY"].pct_change().dropna()
                 spy_annual = (1 + spy_rets.mean())**252 - 1
                 for t in tickers:
@@ -97,9 +93,19 @@ if analizuj:
                     b = np.cov(comb.iloc[:,0], comb.iloc[:,1])[0,1] / np.var(comb.iloc[:,1])
                     betas[t] = b
                     hist_ret = (1 + t_rets.mean())**252 - 1
-                    alphas[t] = hist_ret - (r_f + b * (spy_annual - r_f))
+                    # TUTAJ używamy już bezpiecznego rf_rate
+                    alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
 
+            # 3. Optymalizacja wag
             wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
+
+            # 4. Monte Carlo
+            if run_mc:
+                # Przekazujemy rf_rate, mkt_ret itd. do silnika
+                mc_data = engine.run_monte_carlo(
+                    data_only, wagi, kwota, tickers, adj_mc, 
+                    rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas
+                )
 
             # --- WYŚWIETLANIE TABÓW ---
             t1, t2, t3, t4 = st.tabs(["Struktura Portfela", "Monte Carlo", "Korelacja", "Metodologia"])
