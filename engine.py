@@ -50,63 +50,50 @@ def optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode,
                    method='SLSQP', bounds=c_bounds, constraints=constraints)
     return res.x
 
-def run_monte_carlo(data_only, wagi, kwota, adj_mc, market_params):
-    """
-    Symulacja Monte Carlo wykorzystująca proces GBM z rozkładem t-Studenta (Fat Tails).
-    """
-    n_sims, nu, dt = 3000, 4, 1/252
-    t_scale = np.sqrt((nu - 2) / nu) # Korekta skali dla zachowania wariancji rozkładu t
-    
+def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas):
+    n_sims, dt = 3000, 1/252
     log_rets = np.log(data_only / data_only.shift(1)).dropna()
-    # Roczna zmienność portfela na bazie macierzy kowariancji
     p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
-    
+    daily_rets = data_only.pct_change().dropna()
     results = {}
+
     for y in [5, 10]:
         days = y * 252
         paths = np.zeros((days, n_sims))
         curr = np.full(n_sims, float(kwota))
         
-        # Inicjalizacja parametrów rynkowych
-        t_beta = market_params.get('beta', 1.0)
-        p_alpha = market_params.get('alpha', 0.0)
-        
-        for d in range(days):
-            # Generowanie szumu losowego (grube ogony zwiększają realizm krachów)
-            eps = np.random.standard_t(df=nu, size=n_sims) * t_scale
+        if adj_mc:
+            # --- TRYB: FAT TAILS ENGINE (SKORYGOWANY) ---
+            nu = 4 
+            t_scale = np.sqrt((nu - 2) / nu)
+            p_beta = np.sum([betas[t] * wagi[idx] for idx, t in enumerate(tickers)])
+            p_alpha = np.sum([alphas[t] * wagi[idx] for idx, t in enumerate(tickers)]) * (alpha_ret / 100)
+            t_beta = p_beta
             
-            if adj_mc:
-                # MODEL SKORYGOWANY (CAPM + dryft)
-                # Dryft = (stopa wolna od ryzyka + beta * premia rynkowa + alpha - korekta zmienności)
-                mu = (market_params['rf'] + t_beta * (market_params['rm'] - market_params['rf']) + p_alpha - 0.5 * (p_sigma**2)) * dt
-                
-                # Powrót Bety do średniej (1.0) w czasie (Mean Reversion)
-                if d % 252 == 0 and d > 0: 
-                    t_beta = t_beta * (1 - market_params['speed']) + 1.0 * market_params['speed']
-            else:
-                # MODEL STANDARDOWY (HISTORYCZNY)
-                # Obliczanie średniego historycznego zwrotu geometrycznego
-                hist_mu = (data_only.pct_change().dropna().mean() @ wagi) * 252
-                mu = (np.log(1 + hist_mu) - 0.5 * (p_sigma**2)) * dt
-            
-            # Przejście na następny dzień (Geometryczny Ruch Browna)
-            curr *= np.exp(mu + p_sigma * eps * np.sqrt(dt))
-            paths[d, :] = curr
+            for d in range(days):
+                # Rozkład t-Studenta dla "Grubych Ogonów"
+                epsilon = np.random.standard_t(df=nu, size=n_sims) * t_scale
+                mu = (rf_rate + t_beta * (mkt_ret - rf_rate) + p_alpha - 0.5 * (p_sigma**2)) * dt
+                curr *= np.exp(mu + p_sigma * epsilon * np.sqrt(dt))
+                paths[d, :] = curr
+                if d % 252 == 0: 
+                    t_beta = t_beta * (1 - beta_speed) + 1.0 * beta_speed
+        else:
+            # --- TRYB: STANDARDOWY (ZWYKŁY MONTE CARLO) ---
+            # Zwykły dryf historyczny i rozkład normalny (Gauss)
+            mu = (np.sum(daily_rets.mean() * wagi) * 252 - 0.5 * (p_sigma**2)) * dt
+            for d in range(days):
+                # Standardowy rozkład normalny (bez grubych ogonów)
+                epsilon = np.random.normal(0, 1, n_sims)
+                curr *= np.exp(mu + p_sigma * epsilon * np.sqrt(dt))
+                paths[d, :] = curr
         
-        # Statystyki końcowe
         final = paths[-1, :]
         med = np.median(final)
-        
         results[y] = {
             'paths': paths,
             'stats': pd.DataFrame({
-                "Metryka": [
-                    "95. Percentyl ", 
-                    "Mediana ", 
-                    "5. Percentyl ", 
-                    "Prawd. straty", 
-                    "CAGR "
-                ],
+                "Metryka": ["95. Percentyl (Optymizm)", "Mediana (Wynik statyst.)", "5. Percentyl (Pesymizm)", "Prawd. straty", "CAGR (Roczny zwrot)"],
                 "Wartość": [
                     f"{np.percentile(final, 95):,.0f} PLN",
                     f"{med:,.0f} PLN",
