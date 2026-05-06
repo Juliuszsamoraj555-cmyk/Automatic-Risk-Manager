@@ -156,7 +156,7 @@ with st.sidebar:
         "Symulacje Monte Carlo", 
         value=True,
         help="Uruchamia 3000 losowych scenariuszy stóp zwrotu, aby sprawdzić, co może stać się z Twoim portfelem. Bez dodatkowych założeń jest ona bardzo teoretyczna."
-    
+    )
     label_adj = "Fat Tails Engine 🔒" if not is_pro else "Fat Tails Engine 💎"
     adj_mc_checkbox = st.checkbox(
         label_adj, 
