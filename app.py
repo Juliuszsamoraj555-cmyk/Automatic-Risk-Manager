@@ -144,7 +144,7 @@ with st.sidebar:
     
     # --- BLOKADA FUNKCJI PRO (UI) ---
     label_min = "📍 Min. udział (PRO) 🔒" if not is_pro else "📍 Min. udział (PRO) "
-    constraints_input = st.text_input(label_min, placeholder="NVDA:10", disabled=not is_pro)
+    constraints_input = st.text_input(label_min, placeholder="NVDA:10", disabled=not is_pro,
     help="""
         ### Minimalny udział 
         Jeśli chcesz aby jakieś aktywo stanowiło minimalnie jakąś część twojego portfolio - wpisz ticker:wartość procentowa
