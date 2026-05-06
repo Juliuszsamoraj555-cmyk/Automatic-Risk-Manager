@@ -42,7 +42,7 @@ with st.sidebar:
         # --- SEKCJA DLA GOŚCIA ---
         st.info("Zaloguj się, aby odblokować zaawansowane modele.")
         
-        with st.popover("🔑 Zaloguj / Rejestracja", use_container_width=True):
+        with st.popover(" Zaloguj / Rejestracja", use_container_width=True):
             tab_l, tab_r = st.tabs(["Logowanie", "Rejestracja"])
             
             # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
@@ -94,10 +94,10 @@ with st.sidebar:
         st.write(f"Witaj: **{user_email}**")
         
         if is_pro:
-            st.success(f"💎 STATUS: PRO ({days_left} dni)")
+            st.success(f" STATUS: PRO ({days_left} dni)")
         else:
-            st.warning("🆓 STATUS: FREE")
-            st.link_button("🚀 ODBLOKUJ PRO", f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}")
+            st.warning(" STATUS: FREE")
+            st.link_button(" ODBLOKUJ PRO", f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}")
         
         if st.button("Wyloguj", use_container_width=True):
             if "user" in st.session_state:
@@ -143,7 +143,7 @@ with st.sidebar:
 )
     
     # --- BLOKADA FUNKCJI PRO (UI) ---
-    label_min = "📍 Min. udział (PRO) 🔒" if not is_pro else "📍 Min. udział (PRO) "
+    label_min = " Min. udział (PRO) 🔒" if not is_pro else " Min. udział (PRO) "
     constraints_input = st.text_input(label_min, placeholder="NVDA:10", disabled=not is_pro,
     help="""
         ### Minimalny udział 
@@ -157,7 +157,7 @@ with st.sidebar:
         value=True,
         help="Uruchamia 3000 losowych scenariuszy stóp zwrotu, aby sprawdzić, co może stać się z Twoim portfelem. Bez dodatkowych założeń jest ona bardzo teoretyczna."
     )
-    label_adj = "Fat Tails Engine 🔒" if not is_pro else "Fat Tails Engine 💎"
+    label_adj = "vAlpha Engine 🔒" if not is_pro else "vAlpha Engine "
     adj_mc_checkbox = st.checkbox(
         label_adj, 
         value=False,
