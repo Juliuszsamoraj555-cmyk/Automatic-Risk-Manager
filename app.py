@@ -72,17 +72,50 @@ with st.sidebar:
 
     analizuj = st.button("🚀 URUCHOM ANALIZĘ")
 
-# --- ANALIZA (w app.py) ---
+# --- 5. LOGIKA ANALIZY (w app.py) ---
 if analizuj:
-    # ... (tickers, pobieranie danych itp.) ...
+    tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     
-    with st.spinner('Analizowanie...'):
+    # 1. Sprawdzenie limitu wersji FREE
+    if not is_pro and len(tickers) > 5:
+        st.error("Wersja FREE obsługuje do 5 spółek. Twoja lista ma więcej pozycji.")
+        st.stop()
+
+    # 2. Parsowanie limitów (Smart Constraints)
+    min_bounds = {t: 0.01 for t in tickers}
+    if constraints_input and is_pro:
+        for p in constraints_input.split(','):
+            try:
+                t, v = p.split(':')
+                tk = t.strip().upper()
+                if tk in min_bounds: min_bounds[tk] = float(v)/100
+            except: st.warning(f"Błędny format limitu: {p}")
+        if sum(min_bounds.values()) > 1.0:
+            st.error("Suma minimalnych udziałów przekracza 100%!")
+            st.stop()
+
+    # 3. PROCES ANALIZY
+    with st.spinner('Pobieranie danych rynkowych i przeliczanie...'):
         try:
-            # 1. Pobieranie statystyk
+            # POBIERANIE DANYCH (Tu powstaje zmienna 'data')
+            fetch_list = tickers + (["SPY"] if adj_mc else [])
+            data = engine.get_data(tuple(fetch_list))
+            
+            if data is None or data.empty:
+                st.error("Nie udało się pobrać danych dla podanych tickerów.")
+                st.stop()
+            
+            # Naprawa MultiIndex (jeśli yfinance go wygenerował)
+            if isinstance(data.columns, pd.MultiIndex): 
+                data.columns = data.columns.get_level_values(-1)
+            
+            # Wyciąganie danych tylko dla wybranych spółek (bez SPY)
             data_only = data[tickers]
+            
+            # Pobieranie statystyk z silnika
             daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
             
-            # 2. Logika Bety i Alfy (jeśli Fat Tails Engine jest włączony)
+            # Obliczanie Bety i Alfy (tylko dla Fat Tails Engine)
             betas, alphas = {}, {}
             if adj_mc:
                 spy_rets = data["SPY"].pct_change().dropna()
@@ -93,21 +126,12 @@ if analizuj:
                     b = np.cov(comb.iloc[:,0], comb.iloc[:,1])[0,1] / np.var(comb.iloc[:,1])
                     betas[t] = b
                     hist_ret = (1 + t_rets.mean())**252 - 1
-                    # TUTAJ używamy już bezpiecznego rf_rate
                     alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
 
-            # 3. Optymalizacja wag
+            # Optymalizacja wag (engine.py)
             wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
 
-            # 4. Monte Carlo
-            if run_mc:
-                # Przekazujemy rf_rate, mkt_ret itd. do silnika
-                mc_data = engine.run_monte_carlo(
-                    data_only, wagi, kwota, tickers, adj_mc, 
-                    rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas
-                )
-
-            # --- WYŚWIETLANIE TABÓW ---
+            # --- WYŚWIETLANIE WYNIKÓW (Taby) ---
             t1, t2, t3, t4 = st.tabs(["Struktura Portfela", "Monte Carlo", "Korelacja", "Metodologia"])
             
             with t1:
@@ -119,72 +143,39 @@ if analizuj:
                 c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.0f} PLN")
                 
                 df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi*100, 'PLN': wagi*kwota})
-                st.dataframe(
-                    df_out.sort_values('Udział (%)', ascending=False).style.format({
-                        'Udział (%)': '{:.2f}%', 
-                        'PLN': '{:,.2f} PLN'
-                    }), 
-                    use_container_width=True, 
-                    hide_index=True
-                )
+                st.dataframe(df_out.sort_values('Udział (%)', ascending=False).style.format({
+                    'Udział (%)': '{:.2f}%', 'PLN': '{:,.2f} PLN'
+                }), use_container_width=True, hide_index=True)
 
             with t2:
                 if run_mc:
-                    # 1. WYWOŁANIE SILNIKA
-                    # Przekazujemy komplet danych. Jeśli adj_mc jest False, r_f itd. są zerami, 
-                    # a silnik sam przełączy się na tryb Standard (Gauss).
                     mc_data = engine.run_monte_carlo(
                         data_only, wagi, kwota, tickers, adj_mc, 
-                        r_f, m_r, a_r, b_s, betas, alphas
+                        rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas
                     )
-                    
-                    st.subheader("Symulacja Ścieżek Portfela")
-                    if adj_mc:
-                        st.info("🚀 Tryb: **Fat Tails Engine** (CAPM + Rozkład t-Studenta)")
-                    else:
-                        st.info("📊 Tryb: **Standard Monte Carlo** (Historyczny dryf + Rozkład Gaussa)")
-                    
+                    # ... (tutaj kod wykresów - ten co miałeś, bo jest dobry) ...
+                    # UWAGA: Upewnij się, że kod wykresów jest wcięty pod "if run_mc:"
                     col_a, col_b = st.columns(2)
-                    plt.style.use("dark_background") # Gwarantuje ciemny motyw wykresów
-                    
-                    for i, (y, lbl) in enumerate(zip([5, 10], ["PERSPEKTYWA: 5 LAT", "PERSPEKTYWA: 10 LAT"])):
+                    plt.style.use("dark_background")
+                    for i, (y, lbl) in enumerate(zip([5, 10], ["5 LAT", "10 LAT"])):
                         paths = mc_data[y]['paths']
-                        stats_df = mc_data[y]['stats']
-                        
-                        with (col_a if i == 0 else col_b):
+                        with (col_a if i==0 else col_b):
                             st.write(f"#### {lbl}")
-                            
-                            # Tabela statystyk (Percentyle, CAGR, Prawd. straty)
-                            st.table(stats_df)
-                            
-                            # Generowanie wykresu
-                            fig, ax = plt.subplots(figsize=(10, 6))
-                            
-                            # Wizualizacja chmury (50 losowych ścieżek dla czytelności)
+                            st.table(mc_data[y]['stats'])
+                            fig, ax = plt.subplots()
                             ax.plot(paths[:, :50], alpha=0.15, color='#238636')
-                            
-                            # Linia mediany (Biała, grubsza)
-                            ax.plot(np.median(paths, axis=1), color='white', linewidth=3, label="Mediana")
-                            
-                            # Stylizacja techniczna
+                            ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
                             ax.set_facecolor('#0d1117')
                             fig.patch.set_facecolor('#0d1117')
-                            ax.set_ylabel("Wartość portfela (PLN)")
-                            ax.set_xlabel("Dni handlowe")
-                            ax.grid(True, alpha=0.1, linestyle='--')
-                            
                             st.pyplot(fig)
-                            
-                else:
-                    st.info("Symulacje Monte Carlo są wyłączone. Możesz je włączyć w panelu bocznym.")
+
             with t3:
-                st.subheader("Macierz Korelacji Składników")
-                fig_c, ax_c = plt.subplots(figsize=(10, 8))
-                # Wykorzystanie seaborn dla czytelnej macierzy korelacji
-                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_c, cbar=True)
+                fig_c, ax_c = plt.subplots()
+                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', ax=ax_c)
                 fig_c.patch.set_facecolor('#0d1117')
-                ax_c.set_title("Korelacja Miesięcznych Stóp Zwrotu", color="white")
                 st.pyplot(fig_c)
+
+        
                 
             with t4:
                 st.header("Metodologia vAlpha Engine")
