@@ -62,15 +62,15 @@ with st.sidebar:
     
     if not is_logged_in:
         # --- SEKCJA DLA GOŚCIA ---
-        st.info("Zaloguj się, aby odblokować zaawansowane modele.")
+        st.info(L["login_info"])
         
-        with st.popover(" Zaloguj / Rejestracja", use_container_width=True):
-            tab_l, tab_r = st.tabs(["Logowanie", "Rejestracja"])
+        with st.popover(L["auth_popover"], use_container_width=True):
+    tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
             
             # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
             with tab_l:
-                st.text_input("E-mail", key="l_mail")
-                st.text_input("Hasło", type="password", key="l_pw")
+                st.text_input(L["email"], key="l_mail")
+                st.text_input(L["password"], type="password", key="l_pw")
                 
                 if st.button("Zaloguj", use_container_width=True):
                     email_val = st.session_state.get("l_mail")
@@ -83,18 +83,17 @@ with st.sidebar:
                                 "password": pass_val
                             })
                             st.session_state.user = res
-                            st.success("Zalogowano!")
+                            st.success(L["msg_logged"])
                             st.rerun()
                         except Exception as e:
-                            st.error("Błąd danych. Sprawdź e-mail i hasło.")
+                            st.error(L["msg_auth_error"])
                     else:
-                        st.warning("Wprowadź dane logowania.")
-
+                       st.warning(L["msg_fill_fields"])
             with tab_r:
-                st.text_input("E-mail", key="r_mail")
-                st.text_input("Hasło", type="password", key="r_pw")
+                st.text_input(L["email"], key="r_mail")     # Używamy L["email"]
+    st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
                 
-                if st.button("Załóż konto", use_container_width=True):
+                if st.button(L["btn_register"], use_container_width=True):
                     email_reg = st.session_state.get("r_mail")
                     pass_reg = st.session_state.get("r_pw")
                     
@@ -104,24 +103,26 @@ with st.sidebar:
                                 "email": email_reg, 
                                 "password": pass_reg
                             })
-                            st.success("Konto utworzone! Potwierdź maila.")
+                            st.success(L["msg_reg_success"])
                         except:
-                            st.error("Błąd rejestracji. Hasło min. 6 znaków.")
+                           st.error(L["msg_reg_error"])
                     else:
-                        st.warning("Uzupełnij pola rejestracji.")
+                        st.warning(L["msg_fill_reg"])
     
     else:
         # --- SEKCJA DLA ZALOGOWANEGO ---
         # Ten blok musi być wyrównany do 'if not is_logged_in'
-        st.write(f"Witaj: **{user_email}**")
+        st.write(L["welcome"].format(user_email))
         
         if is_pro:
-            st.success(f" STATUS: PRO ({days_left} dni)")
+          st.success(L["status_pro"].format(days_left))
         else:
-            st.warning(" STATUS: FREE")
-            st.link_button(" ODBLOKUJ PRO", f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}")
+            st.warning(L["status_free"])
+            st.link_button(
+    L["btn_unlock_pro"], 
+    f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
         
-        if st.button("Wyloguj", use_container_width=True):
+        if st.button(L["btn_logout"], use_container_width=True):
             if "user" in st.session_state:
                 del st.session_state.user
             st.rerun()
@@ -131,21 +132,12 @@ with st.sidebar:
     
     # --- INPUTY STANDARDOWE ---
     tickers_input = st.text_input(
-        "Symbole spółek (Tickery):", 
+    L["tickers_label"],
         "AAPL, MSFT, NVDA, TSLA, AMZN",
-        help="""
-        ### 🔍 Jak wpisywać symbole?
-        Wprowadź listę aktywów oddzieloną przecinkami. System pobiera dane z **Yahoo Finance**.
-
-        **Przykłady dla rynków:**
-        * 🇺🇸 **USA (Nasdaq/NYSE):** Sam symbol, np. `AAPL`, `MSFT`, `NVDA`.
-        * 🇵🇱 **Polska (GPW):** Symbol z końcówką `.WA`, np. `PKO.WA`, `ALE.WA`, `CDR.WA`.
-        * 🇪🇺 **Europa:** Końcówki `.DE` (Niemcy), `.PA` (Francja), `.L` (Londyn).
-        * ₿ **Krypto:** Pary z USD, np. `BTC-USD`, `ETH-USD`.
-
-        ---
-         *Wskazówka: Jeśli nie znasz tickera, sprawdź go na finance.yahoo.com.*
-        """
+        tickers_input = st.text_input(
+    L["tickers_label"], 
+    value="AAPL, MSFT, NVDA, TSLA, AMZN", 
+    help=L["tickers_help"]
     )
     
     kwota = st.number_input("Kapitał (PLN):", value=25000)
