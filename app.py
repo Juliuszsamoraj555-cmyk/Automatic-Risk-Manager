@@ -41,29 +41,24 @@ if 'lang' not in st.session_state:
     st.session_state.lang = "PL" # Domyślnie polski
 
 with st.sidebar:
-    # Selektor języka (wyglądający jak na Twoim screenie)
-    lang_display = "🇵🇱 Polski" if st.session_state.lang == "PL" else "🇬🇧 English"
+    # 1. Profesjonalny przełącznik języka (płaski, poziomy)
+    lang_choice = st.radio(
+        "Language",
+        options=["PL", "EN"],
+        index=0 if st.session_state.lang == "PL" else 1,
+        horizontal=True,
+        label_visibility="collapsed" # Ukrywamy etykietę "Language"
+    )
     
-    # Mały trik z kolumnami, żeby selektor był dyskretny
-    c1, c2 = st.columns([1.5, 1])
-    with c2:
-        new_lang = st.selectbox(
-            "", 
-            ["🇵🇱 PL", "🇬🇧 EN"], 
-            index=0 if st.session_state.lang == "PL" else 1,
-            label_visibility="collapsed"
-        )
-    
-    # Zmiana stanu i szybki odśwież (rerun)
-    selected_lang_code = "PL" if "PL" in new_lang else "EN"
-    if selected_lang_code != st.session_state.lang:
-        st.session_state.lang = selected_lang_code
+    # Obsługa zmiany (tylko jeśli użytkownik kliknie)
+    if lang_choice != st.session_state.lang:
+        st.session_state.lang = lang_choice
         st.rerun()
 
-    # Przypisujemy aktualny słownik do krótkiej zmiennej L
-    L = translations.LANGS[st.session_state.lang]
-
+    st.markdown("<br>", unsafe_allow_html=True) # Mały odstęp
     st.title("vAlpha Manager")
+    st.write("---")
+    
     
     if not is_logged_in:
         # --- SEKCJA DLA GOŚCIA ---
