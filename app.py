@@ -36,7 +36,33 @@ else:
     is_pro = False
 
 # --- SIDEBAR (LOGOWANIE + KONFIGURACJA) ---
+# --- 1. LOGIKA WYBORU JĘZYKA ---
+if 'lang' not in st.session_state:
+    st.session_state.lang = "PL" # Domyślnie polski
+
 with st.sidebar:
+    # Selektor języka (wyglądający jak na Twoim screenie)
+    lang_display = "🇵🇱 Polski" if st.session_state.lang == "PL" else "🇬🇧 English"
+    
+    # Mały trik z kolumnami, żeby selektor był dyskretny
+    c1, c2 = st.columns([1.5, 1])
+    with c2:
+        new_lang = st.selectbox(
+            "", 
+            ["🇵🇱 PL", "🇬🇧 EN"], 
+            index=0 if st.session_state.lang == "PL" else 1,
+            label_visibility="collapsed"
+        )
+    
+    # Zmiana stanu i szybki odśwież (rerun)
+    selected_lang_code = "PL" if "PL" in new_lang else "EN"
+    if selected_lang_code != st.session_state.lang:
+        st.session_state.lang = selected_lang_code
+        st.rerun()
+
+    # Przypisujemy aktualny słownik do krótkiej zmiennej L
+    L = translations.LANGS[st.session_state.lang]
+
     st.title("vAlpha Manager")
     
     if not is_logged_in:
