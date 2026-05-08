@@ -260,11 +260,11 @@ if analizuj:
             #1. POBIERANIE DANYCH (Silnik sam przelicza waluty)
             data = engine.get_final_data(tuple(fetch_list), current_currency)
         
-        if data is None or data.empty:
+            if data is None or data.empty:
             st.error(L["error_no_data"])
             st.stop()
         
-        if isinstance(data.columns, pd.MultiIndex): 
+            if isinstance(data.columns, pd.MultiIndex): 
             data.columns = data.columns.get_level_values(-1)
         
         # Dane tylko dla Twoich spółek do optymalizacji
