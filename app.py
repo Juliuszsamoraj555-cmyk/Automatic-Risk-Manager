@@ -228,7 +228,7 @@ if adj_mc_checkbox:
                     0.0, 0.2, 0.05, 
                     help=L["beta_speed_help"]
                 )
-        else:
+    else:
             st.warning(L["msg_pro_required"])
 
     analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
