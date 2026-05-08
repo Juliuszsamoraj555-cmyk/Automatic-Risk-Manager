@@ -296,11 +296,11 @@ if analizuj:
             # --- WYŚWIETLANIE WYNIKÓW (Taby) ---
             t1, t2, t3, t4 = st.tabs(L["tabs"])
             
-           with t1:
-               st.subheader(L["t1_subheader"])
-               p_var = (wagi * monthly_vars).sum()
+            with t1:
+                st.subheader(L["t1_subheader"])
+                p_var = (wagi * monthly_vars).sum()
     
-               c1, c2, c3 = st.columns(3)
+                c1, c2, c3 = st.columns(3)
     
     # METRYKA 1: VaR
     c1.metric(L["metric_var_label"], f"{p_var*100:.2f}%")
