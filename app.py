@@ -143,6 +143,7 @@ with st.sidebar:
     kwota = st.number_input(
         L["capital_label"].format(current_currency), 
         value=25000 if current_currency == "PLN" else 5000
+    )
     opt_mode = st.radio(
     L["opt_model_label"], 
     L["opt_model_options"],
