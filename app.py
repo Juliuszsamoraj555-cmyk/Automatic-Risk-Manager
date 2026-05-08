@@ -191,7 +191,7 @@ run_mc = st.checkbox(
     value=True, 
     help=L["run_mc_help"]
 )
-    suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
+suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
 label_adj = L["valpha_engine_label"] + suffix_adj
 
 adj_mc_checkbox = st.checkbox(
