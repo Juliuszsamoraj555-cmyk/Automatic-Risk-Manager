@@ -120,11 +120,11 @@ with st.sidebar:
         if is_pro:
           st.success(L["status_pro"].format(days_left))
         else:
-            st.warning(L["status_free"])
-            st.link_button(
-    L["btn_unlock_pro"], 
-    f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
-        
+        st.warning(L["status_free"])
+        st.link_button(
+            L["btn_unlock_pro"],
+            f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
+        ) # <--- TEGO NAWIASU BRAKOWAŁO
         if st.button(L["btn_logout"], use_container_width=True):
             if "user" in st.session_state:
                 del st.session_state.user
