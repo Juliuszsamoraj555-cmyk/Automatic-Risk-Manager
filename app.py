@@ -230,7 +230,7 @@ if adj_mc_checkbox:
     else:
             st.warning(L["msg_pro_required"])
 
-    analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
+analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
 
 # --- LOGIKA ANALIZY (FREEMIUM ENFORCEMENT) ---
 if analizuj:
