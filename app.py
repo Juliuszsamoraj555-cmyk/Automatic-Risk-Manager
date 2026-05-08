@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import translations
 from PIL import Image
+from engine import normalize_to_target_currency
 
 # 1. IMPORTY TWOICH MODUŁÓW
 import styles
@@ -54,10 +55,12 @@ with st.sidebar:
     if lang_choice != st.session_state.lang:
         st.session_state.lang = lang_choice
         st.rerun()
-
+        
+    L = translations.LANGS[st.session_state.lang]
     st.markdown("<br>", unsafe_allow_html=True) # Mały odstęp
     st.title("vAlpha Manager")
     st.write("---")
+    current_currency = L["currency"]
     
     
     if not is_logged_in:
@@ -140,43 +143,64 @@ with st.sidebar:
     help=L["tickers_help"]
     )
     
-    kwota = st.number_input("Kapitał (PLN):", value=25000)
+    kwota = st.number_input(
+        L["capital_label"].format(current_currency), 
+        value=25000 if current_currency == "PLN" else 5000
     opt_mode = st.radio(
-        "Model Optymalizacji:", 
-        ["Bezpieczeństwo (VaR-First)", "Efektywność (Sortino)"],
-        help="VaR-First: Minimalizuje ryzyko nagłej straty. Sortino: Szuka najlepszego stosunku zysku do ryzyka."
-    )
-    ryzyko_val = st.select_slider("Ryzyko:", options=['low', 'medium', 'high'])
-    limit_2x = st.checkbox(
-    "Limit dywersyfikacji (2x)", 
-    value=True,
-    help="""
-    ### Bezpiecznik portfela
-    Sprawia, iż największa pozycja w portfelu może być maksymalnie dwukrotnonie większa od najmniejszej pozycji. Ma to na celu ograniczyć ryzyko specyficzne.
-    """
+    L["opt_model_label"], 
+    L["opt_model_options"],
+    help=L["opt_model_help"]
+)
+    # 1. Suwak Ryzyka z mapowaniem
+ryzyko_display = st.select_slider(
+    L["risk_label"], 
+    options=L["risk_options"],
+    value=L["risk_options"][1] # Domyślnie środkowa opcja (Średnie/Medium)
+)
+
+# Tłumaczymy wybrany tekst z powrotem na język silnika (low/medium/high)
+risk_map = {
+    L["risk_options"][0]: "low",
+    L["risk_options"][1]: "medium",
+    L["risk_options"][2]: "high"
+}
+ryzyko_val = risk_map[ryzyko_display]
+
+# 2. Checkbox dywersyfikacji
+limit_2x = st.checkbox(
+    L["limit_2x_label"], 
+    value=True, 
+    help=L["limit_2x_help"]
+)
 )
     
     # --- BLOKADA FUNKCJI PRO (UI) ---
-    label_min = " Min. udział (PRO) 🔒" if not is_pro else " Min. udział (PRO) "
-    constraints_input = st.text_input(label_min, placeholder="NVDA:10", disabled=not is_pro,
-    help="""
-        ### Minimalny udział 
-        Jeśli chcesz aby jakieś aktywo stanowiło minimalnie jakąś część twojego portfolio - wpisz ticker:wartość procentowa
-        """
+    suffix = L["min_weight_locked"] if not is_pro else ""
+label_min = L["min_weight_label"] + suffix
+
+# 2. Wyświetlamy pole tekstowe
+constraints_input = st.text_input(
+    label_min, 
+    placeholder="NVDA:10", 
+    disabled=not is_pro,
+    help=L["min_weight_help"]
+)
     )
     
-    st.divider()
-    run_mc = st.checkbox(
-        "Symulacje Monte Carlo", 
-        value=True,
-        help="Uruchamia 3000 losowych scenariuszy stóp zwrotu, aby sprawdzić, co może stać się z Twoim portfelem. Bez dodatkowych założeń jest ona bardzo teoretyczna."
-    )
-    label_adj = "vAlpha Engine 🔒" if not is_pro else "vAlpha Engine "
-    adj_mc_checkbox = st.checkbox(
-        label_adj, 
-        value=False,
-        help="Skorygowana symulacja Monte Carlo stosująca zamiast rozkładu normalnego Gaussa rozkład t-Studenta, opierająca się na modelu CAPM, Beta Decay oraz Alfie"
-    )
+st.divider()
+run_mc = st.checkbox(
+    L["run_mc_label"], 
+    value=True, 
+    help=L["run_mc_help"]
+)
+    suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
+label_adj = L["valpha_engine_label"] + suffix_adj
+
+adj_mc_checkbox = st.checkbox(
+    label_adj, 
+    value=False, 
+    help=L["valpha_engine_help"]
+)
     
     # Bezpiecznik: adj_mc musi być False, jeśli nie ma PRO
     adj_mc = False
@@ -185,31 +209,34 @@ with st.sidebar:
     if adj_mc_checkbox:
         if is_pro:
             adj_mc = True
-            with st.expander("PARAMETRY RYNKOWE", expanded=False):
+            with st.expander(L["expander_market"], expanded=False):
                 rf_rate = st.number_input(
-                "Rf % (Risk-free):", 
-                value=4.0,
-                help="Stopa wolna od ryzyka (najczęściej przyjmowana jako rentowność 10-letnich obligacji skarbowych)."
-            ) / 100
+                    L["rf_label"], 
+                    value=4.0, 
+                    help=L["rf_help"]
+                ) / 100
+                
                 mkt_ret = st.number_input(
-                "Rm % (Oczekiwany zwrot rynku):", 
-                value=10.0,
-                help="Średni roczny zwrot z szerokiego indeksu (np. S&P 500)."
-            ) / 100
+                    L["rm_label"], 
+                    value=10.0, 
+                    help=L["rm_help"]
+                ) / 100
+                
                 alpha_ret = st.slider(
-                "Alfa % (Przewaga):", 
-                0, 100, 30,
-                help="Ile % dotychczasowej przewagi utzyma twój portfel nad rynkiem."
-            )
+                    L["alpha_label"], 
+                    0, 100, 30, 
+                    help=L["alpha_help"]
+                )
+                
                 beta_speed = st.slider(
-                "Stabilizacja Bety:", 
-                0.0, 0.2, 0.05,
-                help="Szybkość, z jaką Beta portfela dąży do średniej rynkowej w czasie symulacji. Im wyżej, tym szybciej portfel upodabnia się do rynku."
-            )
+                    L["beta_speed_label"], 
+                    0.0, 0.2, 0.05, 
+                    help=L["beta_speed_help"]
+                )
         else:
-            st.warning("Ta funkcja wymaga konta PRO.")
+            st.warning(L["msg_pro_required"])
 
-    analizuj = st.button("🚀 URUCHOM ANALIZĘ")
+    analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
 
 # --- LOGIKA ANALIZY (FREEMIUM ENFORCEMENT) ---
 if analizuj:
@@ -217,7 +244,7 @@ if analizuj:
     
     # 1. Limit 5 spółek dla darmowych
     if not is_pro and len(tickers) > 5:
-        st.error("Wersja FREE obsługuje do 5 spółek.")
+        st.error(L["err_free_limit"])
         st.stop()
 
     # 2. Inicjalizacja limitów (constraints tylko dla PRO)
@@ -231,21 +258,25 @@ if analizuj:
             except: pass
 
     # 3. PROCES ANALIZY
-    with st.spinner('Pobieranie danych rynkowych i przeliczanie...'):
+    with st.spinner(L["spinner_loading"]): # Użyj tłumaczenia dla spinnera
         try:
-            # POBIERANIE DANYCH (Tu powstaje zmienna 'data')
             fetch_list = tickers + (["SPY"] if adj_mc else [])
-            data = engine.get_data(tuple(fetch_list))
+            
+            # 1. POBIERANIE SUROWYCH DANYCH
+            raw_data = engine.get_data(tuple(fetch_list))
+            
+            # 2. NORMALIZACJA WALUTOWA (DODAJ TO!)
+            # Tutaj zamieniamy np. Apple z USD na PLN (lub odwrotnie)
+            data = engine.normalize_to_target_currency(raw_data, current_currency)
             
             if data is None or data.empty:
-                st.error("Nie udało się pobrać danych dla podanych tickerów.")
+                st.error(L["error_no_data"])
                 st.stop()
             
-            # Naprawa MultiIndex (jeśli yfinance go wygenerował)
+            # Dalsza część używa już 'data', która jest w jednej walucie
             if isinstance(data.columns, pd.MultiIndex): 
                 data.columns = data.columns.get_level_values(-1)
             
-            # Wyciąganie danych tylko dla wybranych spółek (bez SPY)
             data_only = data[tickers]
             
             # Pobieranie statystyk z silnika
@@ -268,31 +299,45 @@ if analizuj:
             wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
 
             # --- WYŚWIETLANIE WYNIKÓW (Taby) ---
-            t1, t2, t3, t4 = st.tabs(["Struktura Portfela", "Monte Carlo", "Korelacja", "Metodologia"])
+            t1, t2, t3, t4 = st.tabs(L["tabs"])
             
-            with t1:
-                st.subheader("Rekomendowana Alokacja")
-                p_var = (wagi * monthly_vars).sum()
-                
-                c1, c2, c3 = st.columns(3)
-                
-                # METRYKA 1: VaR
-                c1.metric("Miesięczny VaR (95%)", f"{p_var*100:.2f}%")
-                c1.caption("Istnieje 95% prawdopodobieństwa, że miesięcznie twój portfel nie straci więcej niż tą wartość procentową.")
+           with t1:
+    st.subheader(L["t1_subheader"])
+    p_var = (wagi * monthly_vars).sum()
+    
+    c1, c2, c3 = st.columns(3)
+    
+    # METRYKA 1: VaR
+    c1.metric(L["metric_var_label"], f"{p_var*100:.2f}%")
+    c1.caption(L["metric_var_caption"])
                 
                 # METRYKA 2: Korelacja
-                avg_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean()
-                c2.metric("Średnia Korelacja", f"{avg_corr:.2f}")
-                c2.caption("Korelacja cenowa aktywów - im wyższa tym większa korelacja.")
-                
-                # METRYKA 3: Ryzyko w PLN
-                c3.metric("Ryzyko (PLN)", f"{p_var * kwota:,.0f} PLN")
-                c3.caption("Istnieje 95% prawdopodobieństwa, że miesięcznie twój portfel nie straci więcej niż tą wartość.")
-                
-                df_out = pd.DataFrame({'Ticker': tickers, 'Udział (%)': wagi*100, 'PLN': wagi*kwota})
-                st.dataframe(df_out.sort_values('Udział (%)', ascending=False).style.format({
-                    'Udział (%)': '{:.2f}%', 'PLN': '{:,.2f} PLN'
-                }), use_container_width=True, hide_index=True)
+avg_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean()
+c2.metric(L["metric_corr_label"], f"{avg_corr:.2f}")
+c2.caption(L["metric_corr_caption"])
+
+# METRYKA 3: Ryzyko kwotowe (Dynamiczna waluta)
+c3.metric(
+    L["metric_risk_val_label"].format(current_currency), 
+    f"{p_var * kwota:,.0f} {current_currency}"
+)
+c3.caption(L["metric_risk_val_caption"])
+
+# TABELA: Udziały w portfelu
+df_out = pd.DataFrame({
+    L['col_ticker']: tickers, 
+    L['col_share']: wagi * 100, 
+    current_currency: wagi * kwota
+})
+
+st.dataframe(
+    df_out.sort_values(L['col_share'], ascending=False).style.format({
+        L['col_share']: '{:.2f}%', 
+        current_currency: f'{{:,.2f}} {current_currency}'
+    }), 
+    use_container_width=True, 
+    hide_index=True
+)
 
             with t2:
                 if run_mc:
@@ -325,12 +370,10 @@ if analizuj:
         
                 
             with t4:
-                st.header("Metodologia vAlpha Engine")
-                st.write("""
-                * **Model ryzyka:** Wykorzystujemy proces stochastyczny z rozkładem t-Studenta (Fat Tails), co pozwala lepiej szacować ryzyko krachów rynkowych niż standardowy rozkład normalny.
-                * **Optymalizacja:** Algorytm SLSQP minimalizuje odchylenie od celu (VaR lub Sortino) przy zachowaniu Twoich restrykcji.
-                * **Dostosowanie rynkowe:** Przy włączonej opcji 'Adjust MC', symulacja uwzględnia dryft wynikający z Bety portfela oraz historycznej Alfy.
-                """)
+    st.header(L["t4_header"])
+    st.markdown(L["t4_text"])
 
         except Exception as e:
-            st.error(f"Błąd analizy: Proszę sprawdzić poprawność tickerów. Szczegóły: {e}")
+    st.error(f"{L['err_analysis_main']}")
+    with st.expander(L["err_details"]):
+        st.code(str(e))
