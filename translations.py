@@ -95,6 +95,9 @@ LANGS = {
         """,
         "err_analysis_main": "Błąd analizy: Proszę sprawdzić poprawność tickerów.",
         "err_details": "Szczegóły techniczne:",
+        "mc_metrics": ["95. Percentyl", "3. Kwartyl (Q3)", "Mediana", "1. Kwartyl (Q1)", "5. Percentyl", "Prawd. straty", "CAGR"],
+        "mc_5y": "PROGNOZA 5 LAT",
+        "mc_10y": "PROGNOZA 10 LAT",
     
     },
     "EN": {
@@ -189,6 +192,8 @@ LANGS = {
         * **vAlpha Engine (Adjusted MC):** Our proprietary Monte Carlo simulation is not a simple "random walk." It integrates the **CAPM** (Capital Asset Pricing Model), accounting for historical Alpha (your edge) and Beta (market sensitivity). Furthermore, we implement a **Beta Decay** mechanism, which assumes that extreme asset performances tend to stabilize and gravitate toward the market mean over time.
         """,
         "err_analysis_main": "Analysis error: Please verify that the tickers are correct.",
-        "err_details": "Technical details:",
+        "mc_metrics": ["95th Percentile", "3rd Quartile (Q3)", "Median", "1st Quartile (Q1)", "5th Percentile", "Prob. of loss", "CAGR",
+        "mc_5y": "5-YEAR FORECAST",
+        "mc_10y": "10-YEAR FORECAST",
     }
 }
