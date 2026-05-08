@@ -268,7 +268,7 @@ if analizuj:
                 data.columns = data.columns.get_level_values(-1)
         
         # Dane tylko dla Twoich spółek do optymalizacji
-                data_only = data[tickers]
+            data_only = data[tickers]
         
         # 2. STATYSTYKI I OPTYMALIZACJA WAG
                 daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
@@ -279,13 +279,13 @@ if analizuj:
                 spy_rets = data["SPY"].pct_change().dropna()
                 spy_annual = (1 + spy_rets.mean())**252 - 1
         
-        for t in tickers:
-            t_rets = data_only[t].pct_change().dropna()
-            comb = pd.concat([t_rets, spy_rets], axis=1).dropna()
-            b = np.cov(comb.iloc[:,0], comb.iloc[:,1])[0,1] / np.var(comb.iloc[:,1])
-            betas[t] = b
-            hist_ret = (1 + t_rets.mean())**252 - 1
-            alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
+            for t in tickers:
+                t_rets = data_only[t].pct_change().dropna()
+                comb = pd.concat([t_rets, spy_rets], axis=1).dropna()
+                b = np.cov(comb.iloc[:,0], comb.iloc[:,1])[0,1] / np.var(comb.iloc[:,1])
+                betas[t] = b
+                hist_ret = (1 + t_rets.mean())**252 - 1
+                alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
 
         # GŁÓWNY WYNIK: Optymalizacja wag
             wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
