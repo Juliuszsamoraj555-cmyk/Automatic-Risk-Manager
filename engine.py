@@ -3,11 +3,37 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
 import streamlit as st
-
 @st.cache_data(ttl=3600)
-def get_data(tickers_tuple):
-    """Pobiera dane historyczne zamknięcia dla zadanych tickerów."""
-    return yf.download(list(tickers_tuple), period="3y")['Close']
+def get_final_data(tickers_tuple, target_ccy):
+    """
+    Łączy pobieranie i przeliczanie walut. 
+    Dzięki target_ccy w argumentach, Streamlit wie, 
+    że musi przeliczyć dane na nowo, gdy zmienisz język.
+    """
+    # 1. Pobieranie surowych danych
+    raw_data = yf.download(list(tickers_tuple), period="3y")['Close']
+    
+    # 2. Pobieranie kursu walutowego
+    fx_rate = yf.Ticker("USDPLN=X").history(period="1d")['Close'].iloc[-1]
+    
+    normalized_df = raw_data.copy()
+    
+    # 3. Przeliczanie (Normalizacja)
+    for ticker_name in raw_data.columns:
+        t_obj = yf.Ticker(ticker_name)
+        # Pobieramy walutę - używamy .fast_info jeśli dostępne, lub .info
+        # fast_info jest znacznie szybsze!
+        try:
+            native_ccy = t_obj.fast_info['currency']
+        except:
+            native_ccy = t_obj.info.get('currency', 'USD')
+            
+        if native_ccy == "USD" and target_ccy == "PLN":
+            normalized_df[ticker_name] = raw_data[ticker_name] * fx_rate
+        elif native_ccy == "PLN" and target_ccy == "USD":
+            normalized_df[ticker_name] = raw_data[ticker_name] / fx_rate
+            
+    return normalized_df
 
 def get_portfolio_stats(data_only):
     """Oblicza statystyki niezbędne do optymalizacji wag."""
@@ -24,7 +50,7 @@ def optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode,
     Optymalizuje wagi portfela, dążąc do celu teoretycznego (VaR lub Sortino) 
     przy zachowaniu zadanych ograniczeń.
     """
-    if opt_mode == "Bezpieczeństwo (VaR-First)":
+    if "VaR-First" in opt_mode:
         p = {'low': 2.0, 'medium': 1.0, 'high': 0.5}[ryzyko_val]
         # Im wyższy VaR, tym mniejsza waga. (1 - mean_corr) promuje dywersyfikację.
         target_w_raw = (1 / (monthly_vars ** p)) * (1 - corr_matrix.mean())
