@@ -251,45 +251,52 @@ if analizuj:
                 if tk in min_bounds: min_bounds[tk] = float(v)/100
             except: pass
 
-    # 3. PROCES ANALIZY
-    with st.spinner(L["spinner_loading"]): # Użyj tłumaczenia dla spinnera
-        try:
-            fetch_list = tickers + (["SPY"] if adj_mc else [])
-            
-            # 1. POBIERANIE SUROWYCH DANYCH
-            data = engine.get_final_data(tuple(fetch_list), current_currency)
-            
-            if data is None or data.empty:
-                st.error(L["error_no_data"])
-                st.stop()
-            
-            # Dalsza część używa już 'data', która jest w jednej walucie
-            if isinstance(data.columns, pd.MultiIndex): 
-                data.columns = data.columns.get_level_values(-1)
-            
-            data_only = data[tickers]
-            
-            # Pobieranie statystyk z silnika
-            daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
-            
-            # Obliczanie Bety i Alfy (tylko dla Fat Tails Engine)
-            betas, alphas = {}, {}
-            if adj_mc:
-                spy_rets = data["SPY"].pct_change().dropna()
-                spy_annual = (1 + spy_rets.mean())**252 - 1
-                for t in tickers:
-                    t_rets = data_only[t].pct_change().dropna()
-                    comb = pd.concat([t_rets, spy_rets], axis=1).dropna()
-                    b = np.cov(comb.iloc[:,0], comb.iloc[:,1])[0,1] / np.var(comb.iloc[:,1])
-                    betas[t] = b
-                    hist_ret = (1 + t_rets.mean())**252 - 1
-                    alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
+    with st.spinner(L["spinner_loading"]):
+    try:
+        # ZMIANA: Zawsze dodajemy SPY do listy, bo jest potrzebny do Backtestingu (benchmark)
+        # list(set(...)) usuwa duplikaty, gdyby użytkownik sam wpisał SPY
+        fetch_list = list(set(tickers + ["SPY"]))
+        
+        # 1. POBIERANIE DANYCH (Silnik sam przelicza waluty)
+        data = engine.get_final_data(tuple(fetch_list), current_currency)
+        
+        if data is None or data.empty:
+            st.error(L["error_no_data"])
+            st.stop()
+        
+        if isinstance(data.columns, pd.MultiIndex): 
+            data.columns = data.columns.get_level_values(-1)
+        
+        # Dane tylko dla Twoich spółek do optymalizacji
+        data_only = data[tickers]
+        
+        # 2. STATYSTYKI I OPTYMALIZACJA WAG
+        daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
+        
+        # Obliczanie Bety i Alfy (potrzebne do Fat Tails Engine)
+        betas, alphas = {}, {}
+        # SPY musi być w data, bo dodaliśmy go do fetch_list
+        spy_rets = data["SPY"].pct_change().dropna()
+        spy_annual = (1 + spy_rets.mean())**252 - 1
+        
+        for t in tickers:
+            t_rets = data_only[t].pct_change().dropna()
+            comb = pd.concat([t_rets, spy_rets], axis=1).dropna()
+            b = np.cov(comb.iloc[:,0], comb.iloc[:,1])[0,1] / np.var(comb.iloc[:,1])
+            betas[t] = b
+            hist_ret = (1 + t_rets.mean())**252 - 1
+            alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
 
-            # Optymalizacja wag (engine.py)
-            wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
+        # GŁÓWNY WYNIK: Optymalizacja wag
+        wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
 
-            # --- WYŚWIETLANIE WYNIKÓW (Taby) ---
-            t1, t2, t3, t4 = st.tabs(L["tabs"])
+        # --- NOWOŚĆ: WYWOŁANIE BACKTESTINGU ---
+        # data["SPY"] służy jako tło do porównania wyników
+        port_cum, bench_cum = engine.run_backtest(data_only, wagi, data["SPY"])
+
+        # --- 4. WYŚWIETLANIE WYNIKÓW (Taby) ---
+        # Dodajemy L["tab_backtest"] do listy tabów
+        t1, t2, t3, t4, t5 = st.tabs(L["tabs"] + [L["tab_backtest"]])
             
             with t1:
                 st.subheader(L["t1_subheader"])
@@ -382,6 +389,34 @@ if analizuj:
             with t4:
                 st.header(L["t4_header"])
                 st.markdown(L["t4_text"])
+            with t5:
+                st.subheader(L["backtest_header"])
+                st.write(L["backtest_desc"])
+    
+                fig_bt, ax_bt = plt.subplots(figsize=(10, 5))
+    
+                # Rysujemy portfel
+                ax_bt.plot(port_cum * 100, label=L["backtest_port_label"], color='#238636', linewidth=2.5)
+                # Rysujemy benchmark
+                ax_bt.plot(bench_cum * 100, label=L["backtest_bench_label"], color='white', alpha=0.6, linestyle='--')
+    
+                # Estetyka
+                ax_bt.set_facecolor('#0d1117')
+                fig_bt.patch.set_facecolor('#0d1117')
+                ax_bt.set_ylabel(f"{L['capital_label'].split()[0]} (%)") # Pokazuje % wzrostu
+                ax_bt.legend()
+                ax_bt.grid(alpha=0.1)
+    
+                st.pyplot(fig_bt)
+    
+                # Mini statystyka pod wykresem
+                final_return = (port_cum.iloc[-1] - 1) * 100
+                bench_return = (bench_cum.iloc[-1] - 1) * 100
+    
+                c1, c2 = st.columns(2)
+                c1.metric(L["backtest_port_label"], f"{final_return:.2f}%")
+                c2.metric(L["backtest_bench_label"], f"{bench_return:.2f}%", 
+                delta=f"{final_return - bench_return:.2f}% Alpha")
 
         except Exception as e:  # <--- KLUCZOWY MOMENT: tutaj nazywamy błąd literką 'e'
             st.error(L["err_generic"]) # Twoja ogólna wiadomość o błędzie
