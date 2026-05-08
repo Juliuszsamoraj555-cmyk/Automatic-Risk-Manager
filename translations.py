@@ -106,7 +106,7 @@ LANGS = {
         "tickers_label": "Stock Symbols (Tickers):",
         "tickers_help": "###  How to enter symbols?\nEnter a list of assets...",
         "engine_label": "vAlpha Engine ",
-        "engine_help": "Adjusted Monte Carlo simulation..."
+        "engine_help": "Adjusted Monte Carlo simulation...",
         "email": "E-mail",
         "password": "Password",
         "msg_logged": "Logged in!",
