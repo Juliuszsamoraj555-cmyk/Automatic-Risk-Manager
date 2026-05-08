@@ -100,6 +100,7 @@ LANGS = {
         "mc_10y": "PROGNOZA 10 LAT",
         "auth_popover": "Zaloguj się / Rejestracja",
         "spinner_loading": "Trwa analiza danych i symulacja Monte Carlo...",
+        "err_generic": "Wystąpił nieoczekiwany błąd podczas analizy.",
     
     },
     "EN": {
@@ -199,5 +200,6 @@ LANGS = {
         "mc_10y": "10-YEAR FORECAST",
         "spinner_loading": "Analyzing data and running Monte Carlo simulation...",
         "auth_popover": "Login / Register",
+        "err_generic": "An unexpected error occurred during the analysis.",
     }
 }
