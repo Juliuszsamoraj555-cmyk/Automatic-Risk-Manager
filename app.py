@@ -297,8 +297,8 @@ if analizuj:
             t1, t2, t3, t4 = st.tabs(L["tabs"])
             
            with t1:
-    st.subheader(L["t1_subheader"])
-    p_var = (wagi * monthly_vars).sum()
+               st.subheader(L["t1_subheader"])
+               p_var = (wagi * monthly_vars).sum()
     
     c1, c2, c3 = st.columns(3)
     
