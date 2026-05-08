@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import translations
 from PIL import Image
-from engine import normalize_to_target_currency
-
+from engine import get_final_data
 # 1. IMPORTY TWOICH MODUŁÓW
 import styles
 import database
@@ -336,24 +335,44 @@ if analizuj:
 
             with t2:
                 if run_mc:
+                    # Wywołujemy silnik z nowymi argumentami (waluta i etykiety z L)
                     mc_data = engine.run_monte_carlo(
                         data_only, wagi, kwota, tickers, adj_mc, 
-                        rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas
+                        rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas,
+                        target_ccy=current_currency,
+                        mc_labels=L["mc_metrics"]
                     )
-                    # ... (tutaj kod wykresów - ten co miałeś, bo jest dobry) ...
-                    # UWAGA: Upewnij się, że kod wykresów jest wcięty pod "if run_mc:"
+
                     col_a, col_b = st.columns(2)
                     plt.style.use("dark_background")
-                    for i, (y, lbl) in enumerate(zip([5, 10], ["5 LAT", "10 LAT"])):
+                    
+                    # Pobieramy etykiety lat z tłumaczeń (np. L["mc_5y"], L["mc_10y"])
+                    years_labels = [L.get("mc_5y", "5 LAT"), L.get("mc_10y", "10 LAT")]
+
+                    for i, (y, lbl) in enumerate(zip([5, 10], years_labels)):
                         paths = mc_data[y]['paths']
-                        with (col_a if i==0 else col_b):
-                            st.write(f"#### {lbl}")
+                        
+                        with (col_a if i == 0 else col_b):
+                            st.markdown(f"### {lbl}")
+                            
+                            # Wyświetlamy tabelę z 7 metrykami (Q1, Q3 itd.)
                             st.table(mc_data[y]['stats'])
-                            fig, ax = plt.subplots()
-                            ax.plot(paths[:, :50], alpha=0.15, color='#238636')
-                            ax.plot(np.median(paths, axis=1), color='white', linewidth=2)
+                            
+                            # Wykres
+                            fig, ax = plt.subplots(figsize=(10, 6))
+                            
+                            # Rysujemy 50 przykładowych ścieżek
+                            ax.plot(paths[:, :50], alpha=0.1, color='#238636')
+                            
+                            # Linia mediany (grubsza)
+                            ax.plot(np.median(paths, axis=1), color='white', linewidth=2, label="Mediana")
+                            
+                            # Estetyka wykresu
                             ax.set_facecolor('#0d1117')
                             fig.patch.set_facecolor('#0d1117')
+                            ax.set_ylabel(current_currency)
+                            ax.set_xlabel(L.get("mc_days", "Dni handlowe"))
+                            
                             st.pyplot(fig)
 
             with t3:
