@@ -369,6 +369,6 @@ if analizuj:
                 st.markdown(L["t4_text"])
 
         except Exception as e:
-    st.error(f"{L['err_analysis_main']}")
+            st.error(f"{L['err_analysis_main']}")
     with st.expander(L["err_details"]):
         st.code(str(e))
