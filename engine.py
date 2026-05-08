@@ -76,7 +76,7 @@ def optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode,
                    method='SLSQP', bounds=c_bounds, constraints=constraints)
     return res.x
 
-def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas):
+def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas, target_ccy):
     n_sims, dt = 3000, 1/252
     log_rets = np.log(data_only / data_only.shift(1)).dropna()
     p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
@@ -106,10 +106,8 @@ def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, a
                     t_beta = t_beta * (1 - beta_speed) + 1.0 * beta_speed
         else:
             # --- TRYB: STANDARDOWY (ZWYKŁY MONTE CARLO) ---
-            # Zwykły dryf historyczny i rozkład normalny (Gauss)
             mu = (np.sum(daily_rets.mean() * wagi) * 252 - 0.5 * (p_sigma**2)) * dt
             for d in range(days):
-                # Standardowy rozkład normalny (bez grubych ogonów)
                 epsilon = np.random.normal(0, 1, n_sims)
                 curr *= np.exp(mu + p_sigma * epsilon * np.sqrt(dt))
                 paths[d, :] = curr
@@ -119,11 +117,11 @@ def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, a
         results[y] = {
             'paths': paths,
             'stats': pd.DataFrame({
-                "Metryka": ["95. Percentyl (Optymizm)", "Mediana (Wynik statyst.)", "5. Percentyl (Pesymizm)", "Prawd. straty", "CAGR (Roczny zwrot)"],
+                "Metryka": mc_labels, # Silnik mówi: 'Wstaw tu to, co mi podasz w pudełku'
                 "Wartość": [
-                    f"{np.percentile(final, 95):,.0f} PLN",
-                    f"{med:,.0f} PLN",
-                    f"{np.percentile(final, 5):,.0f} PLN",
+                    f"{np.percentile(final, 95):,.0f} {target_ccy}",
+                    f"{med:,.0f} {target_ccy}",
+                    f"{np.percentile(final, 5):,.0f} {target_ccy}",
                     f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%",
                     f"{((med / kwota)**(1/y) - 1)*100:.2f}%"
                 ]
