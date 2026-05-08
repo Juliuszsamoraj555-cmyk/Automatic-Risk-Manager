@@ -203,7 +203,6 @@ adj_mc_checkbox = st.checkbox(
     # Bezpiecznik: adj_mc musi być False, jeśli nie ma PRO
     adj_mc = False
     rf_rate, mkt_ret, alpha_ret, beta_speed = 0.04, 0.10, 30.0, 0.05
-
     if adj_mc_checkbox:
         if is_pro:
             adj_mc = True
