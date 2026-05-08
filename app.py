@@ -365,8 +365,8 @@ if analizuj:
         
                 
             with t4:
-    st.header(L["t4_header"])
-    st.markdown(L["t4_text"])
+                st.header(L["t4_header"])
+                st.markdown(L["t4_text"])
 
         except Exception as e:
     st.error(f"{L['err_analysis_main']}")
