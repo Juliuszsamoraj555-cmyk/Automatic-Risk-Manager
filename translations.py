@@ -107,6 +107,7 @@ LANGS = {
         "backtest_desc": "Wykres pokazuje, jak zachowałby się ten portfel w przeszłości w porównaniu do indeksu S&P 500 (SPY).",
         "backtest_port_label": "Twój Portfel vAlpha",
         "backtest_bench_label": "Benchmark (S&P 500)",
+        "error_no_data": "Błąd: Nie udało się pobrać danych dla podanych spółek. Sprawdź tickery.",
     
     },
     "EN": {
@@ -213,5 +214,6 @@ LANGS = {
         "backtest_desc": "The chart shows how this portfolio would have performed in the past compared to the S&P 500 index (SPY).",
         "backtest_port_label": "Your vAlpha Portfolio",
         "backtest_bench_label": "Benchmark (S&P 500)",
+        "error_no_data": "Error: Could not fetch data for the given tickers. Please check the symbols.",
     }
 }
