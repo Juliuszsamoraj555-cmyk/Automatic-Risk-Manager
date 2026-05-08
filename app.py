@@ -257,8 +257,8 @@ if analizuj:
             # list(set(...)) usuwa duplikaty, gdyby użytkownik sam wpisał SPY
             fetch_list = list(set(tickers + ["SPY"]))
         
-        # 1. POBIERANIE DANYCH (Silnik sam przelicza waluty)
-        data = engine.get_final_data(tuple(fetch_list), current_currency)
+            1. POBIERANIE DANYCH (Silnik sam przelicza waluty)
+            data = engine.get_final_data(tuple(fetch_list), current_currency)
         
         if data is None or data.empty:
             st.error(L["error_no_data"])
@@ -268,16 +268,16 @@ if analizuj:
             data.columns = data.columns.get_level_values(-1)
         
         # Dane tylko dla Twoich spółek do optymalizacji
-        data_only = data[tickers]
+            data_only = data[tickers]
         
         # 2. STATYSTYKI I OPTYMALIZACJA WAG
-        daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
+            daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
         
         # Obliczanie Bety i Alfy (potrzebne do Fat Tails Engine)
-        betas, alphas = {}, {}
+            betas, alphas = {}, {}
         # SPY musi być w data, bo dodaliśmy go do fetch_list
-        spy_rets = data["SPY"].pct_change().dropna()
-        spy_annual = (1 + spy_rets.mean())**252 - 1
+            spy_rets = data["SPY"].pct_change().dropna()
+            spy_annual = (1 + spy_rets.mean())**252 - 1
         
         for t in tickers:
             t_rets = data_only[t].pct_change().dropna()
@@ -288,15 +288,15 @@ if analizuj:
             alphas[t] = hist_ret - (rf_rate + b * (spy_annual - rf_rate))
 
         # GŁÓWNY WYNIK: Optymalizacja wag
-        wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
+            wagi = engine.optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode, ryzyko_val, min_bounds, limit_2x)
 
         # --- NOWOŚĆ: WYWOŁANIE BACKTESTINGU ---
         # data["SPY"] służy jako tło do porównania wyników
-        port_cum, bench_cum = engine.run_backtest(data_only, wagi, data["SPY"])
+            port_cum, bench_cum = engine.run_backtest(data_only, wagi, data["SPY"])
 
         # --- 4. WYŚWIETLANIE WYNIKÓW (Taby) ---
         # Dodajemy L["tab_backtest"] do listy tabów
-        t1, t2, t3, t4, t5 = st.tabs(L["tabs"] + [L["tab_backtest"]])
+            t1, t2, t3, t4, t5 = st.tabs(L["tabs"] + [L["tab_backtest"]])
             
             with t1:
                 st.subheader(L["t1_subheader"])
