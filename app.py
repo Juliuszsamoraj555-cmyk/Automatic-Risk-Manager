@@ -261,23 +261,23 @@ if analizuj:
             data = engine.get_final_data(tuple(fetch_list), current_currency)
         
             if data is None or data.empty:
-            st.error(L["error_no_data"])
-            st.stop()
+                st.error(L["error_no_data"])
+                st.stop()
         
             if isinstance(data.columns, pd.MultiIndex): 
-            data.columns = data.columns.get_level_values(-1)
+                data.columns = data.columns.get_level_values(-1)
         
         # Dane tylko dla Twoich spółek do optymalizacji
-            data_only = data[tickers]
+                data_only = data[tickers]
         
         # 2. STATYSTYKI I OPTYMALIZACJA WAG
-            daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
+                daily_rets, monthly_rets, monthly_vars, corr_matrix = engine.get_portfolio_stats(data_only)
         
         # Obliczanie Bety i Alfy (potrzebne do Fat Tails Engine)
-            betas, alphas = {}, {}
+                betas, alphas = {}, {}
         # SPY musi być w data, bo dodaliśmy go do fetch_list
-            spy_rets = data["SPY"].pct_change().dropna()
-            spy_annual = (1 + spy_rets.mean())**252 - 1
+                spy_rets = data["SPY"].pct_change().dropna()
+                spy_annual = (1 + spy_rets.mean())**252 - 1
         
         for t in tickers:
             t_rets = data_only[t].pct_change().dropna()
