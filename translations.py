@@ -207,7 +207,7 @@ LANGS = {
         "spinner_loading": "Analyzing data and running Monte Carlo simulation...",
         "auth_popover": "Login / Register",
         "err_generic": "An unexpected error occurred during the analysis.",
-        "err_details": "Error details"
+        "err_details": "Error details",
         "tab_backtest": "Backtesting",
         "backtest_header": "Historical Performance (Last 3 Years)",
         "backtest_desc": "The chart shows how this portfolio would have performed in the past compared to the S&P 500 index (SPY).",
