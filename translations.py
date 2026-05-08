@@ -10,11 +10,11 @@ LANGS = {
         "tickers_label": "Symbole spółek (Tickery):",
         "tickers_help": "###  Jak wpisywać symbole?\nWprowadź listę aktywów...",
         "engine_label": "vAlpha Engine ",
-        "engine_help": "Skorygowana symulacja Monte Carlo..."
-        "email": "E-mail"
+        "engine_help": "Skorygowana symulacja Monte Carlo...",
+        "email": "E-mail",
         "password": "Hasło",
         "msg_logged": "Zalogowano!",
-        "msg_auth_error": "Błąd danych. Sprawdź e-mail i hasło."
+        "msg_auth_error": "Błąd danych. Sprawdź e-mail i hasło.",
         "msg_fill_fields": "Wprowadź dane logowania.",
         "btn_register": "Załóż konto",
         "msg_reg_success": "Konto utworzone! Potwierdź e-mail, aby aktywować.",
@@ -107,10 +107,10 @@ LANGS = {
         "tickers_help": "###  How to enter symbols?\nEnter a list of assets...",
         "engine_label": "vAlpha Engine ",
         "engine_help": "Adjusted Monte Carlo simulation..."
-        "email": "E-mail"
+        "email": "E-mail",
         "password": "Password",
         "msg_logged": "Logged in!",
-        "msg_auth_error": "Authentication error. Check e-mail and password."
+        "msg_auth_error": "Authentication error. Check e-mail and password.",
         "msg_fill_fields": "Please enter your login details.",
         "btn_register": "Create account",
         "msg_reg_success": "Account created! Please confirm your email to activate.",
