@@ -132,3 +132,22 @@ def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, a
             })
         }
     return results
+def run_backtest(data_only, wagi, benchmark_data):
+    """
+    Oblicza historyczną wydajność portfela na podstawie wyliczonych wag.
+    """
+    # 1. Stopy zwrotu z aktywów w portfelu
+    rets = data_only.pct_change().dropna()
+    
+    # 2. Ważona stopa zwrotu portfela (dzień po dniu)
+    port_rets = rets.dot(wagi)
+    
+    # 3. Skumulowana stopa zwrotu (1.0 = start)
+    port_cum = (1 + port_rets).cumprod()
+    
+    # 4. Skumulowana stopa zwrotu benchmarku (np. SPY)
+    bench_rets = benchmark_data.pct_change().dropna()
+    # Wyrównujemy indeksy, żeby benchmark i portfel miały te same dni
+    bench_cum = (1 + bench_rets[port_cum.index]).cumprod()
+    
+    return port_cum, bench_cum
