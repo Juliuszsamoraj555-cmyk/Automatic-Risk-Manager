@@ -389,6 +389,5 @@ if analizuj:
 
         except Exception as e:  # <--- KLUCZOWY MOMENT: tutaj nazywamy błąd literką 'e'
             st.error(L["err_generic"]) # Twoja ogólna wiadomość o błędzie
-    
-    with st.expander(L["err_details"]): # Rozwijane szczegóły
-        st.code(str(e))
+            with st.expander(L["err_details"]): # Rozwijane szczegóły
+                st.code(str(e))
