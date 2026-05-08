@@ -173,7 +173,7 @@ limit_2x = st.checkbox(
 
     
     # --- BLOKADA FUNKCJI PRO (UI) ---
-    suffix = L["min_weight_locked"] if not is_pro else ""
+suffix = L["min_weight_locked"] if not is_pro else ""
 label_min = L["min_weight_label"] + suffix
 
 # 2. Wyświetlamy pole tekstowe
