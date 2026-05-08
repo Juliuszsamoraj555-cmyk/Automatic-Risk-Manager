@@ -5,35 +5,31 @@ from scipy.optimize import minimize
 import streamlit as st
 @st.cache_data(ttl=3600)
 def get_final_data(tickers_tuple, target_ccy):
-    """
-    Łączy pobieranie i przeliczanie walut. 
-    Dzięki target_ccy w argumentach, Streamlit wie, 
-    że musi przeliczyć dane na nowo, gdy zmienisz język.
-    """
-    # 1. Pobieranie surowych danych
+    # 1. Pobieranie danych akcji
     raw_data = yf.download(list(tickers_tuple), period="3y")['Close']
     
-    # 2. Pobieranie kursu walutowego
-    fx_rate = yf.Ticker("USDPLN=X").history(period="1d")['Close'].iloc[-1]
+    # 2. Pobieranie HISTORYCZNEGO kursu walut (również za 3 lata!)
+    fx_data = yf.download("USDPLN=X", period="3y")['Close']
     
     normalized_df = raw_data.copy()
     
-    # 3. Przeliczanie (Normalizacja)
+    # 3. Przeliczanie dynamiczne (dzień po dniu)
     for ticker_name in raw_data.columns:
-        t_obj = yf.Ticker(ticker_name)
-        # Pobieramy walutę - używamy .fast_info jeśli dostępne, lub .info
-        # fast_info jest znacznie szybsze!
         try:
+            t_obj = yf.Ticker(ticker_name)
             native_ccy = t_obj.fast_info['currency']
         except:
-            native_ccy = t_obj.info.get('currency', 'USD')
+            native_ccy = 'USD'
             
         if native_ccy == "USD" and target_ccy == "PLN":
-            normalized_df[ticker_name] = raw_data[ticker_name] * fx_rate
+            # Mnożymy cenę z każdego dnia przez kurs z tego samego dnia
+            normalized_df[ticker_name] = raw_data[ticker_name] * fx_data
         elif native_ccy == "PLN" and target_ccy == "USD":
-            normalized_df[ticker_name] = raw_data[ticker_name] / fx_rate
+            # Dzielimy cenę z każdego dnia przez kurs z tego samego dnia
+            normalized_df[ticker_name] = raw_data[ticker_name] / fx_data
             
-    return normalized_df
+    # Usuwamy wiersze, gdzie nie ma danych (np. święta w USA, które nie są świętami w PL)
+    return normalized_df.dropna()
 
 def get_portfolio_stats(data_only):
     """Oblicza statystyki niezbędne do optymalizacji wag."""
