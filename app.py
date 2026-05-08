@@ -94,7 +94,7 @@ with st.sidebar:
                        st.warning(L["msg_fill_fields"])
             with tab_r:
                 st.text_input(L["email"], key="r_mail")     # Używamy L["email"]
-    st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
+                st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
                 
                 if st.button(L["btn_register"], use_container_width=True):
                     email_reg = st.session_state.get("r_mail")
