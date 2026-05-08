@@ -119,11 +119,13 @@ def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, a
             'stats': pd.DataFrame({
                 "Metryka": mc_labels, # Silnik mówi: 'Wstaw tu to, co mi podasz w pudełku'
                 "Wartość": [
-                    f"{np.percentile(final, 95):,.0f} {target_ccy}",
-                    f"{med:,.0f} {target_ccy}",
-                    f"{np.percentile(final, 5):,.0f} {target_ccy}",
-                    f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%",
-                    f"{((med / kwota)**(1/y) - 1)*100:.2f}%"
+                    f"{np.percentile(final, 95):,.0f} {target_ccy}",   # 1. 95th
+                    f"{np.percentile(final, 75):,.0f} {target_ccy}",   # 2. Q3 (NOWE)
+                    f"{med:,.0f} {target_ccy}",                        # 3. Mediana
+                    f"{np.percentile(final, 25):,.0f} {target_ccy}",   # 4. Q1 (NOWE)
+                    f"{np.percentile(final, 5):,.0f} {target_ccy}",    # 5. 5th
+                    f"{(np.sum(final < kwota) / n_sims) * 100:.1f}%",  # 6. Prawd. straty
+                    f"{((med / kwota)**(1/y) - 1)*100:.2f}%"           # 7. CAGR
                 ]
             })
         }
