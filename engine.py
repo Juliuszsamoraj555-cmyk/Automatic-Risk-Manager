@@ -5,16 +5,22 @@ from scipy.optimize import minimize
 import streamlit as st
 @st.cache_data(ttl=3600)
 def get_final_data(tickers_tuple, target_ccy):
-    # 1. Pobieranie danych akcji
-    raw_data = yf.download(list(tickers_tuple), period="3y")['Close']
+    # 1. Pobieranie danych (zdejmujemy strefę czasową .tz_localize(None))
+    raw_data = yf.download(list(tickers_tuple), period="3y")['Close'].tz_localize(None)
+    fx_data = yf.download("USDPLN=X", period="3y")['Close'].tz_localize(None)
     
-    # 2. Pobieranie HISTORYCZNEGO kursu walut (również za 3 lata!)
-    fx_data = yf.download("USDPLN=X", period="3y")['Close']
+    # Upewniamy się, że fx_data to Series (czasem yfinance zwraca DataFrame)
+    if isinstance(fx_data, pd.DataFrame):
+        fx_data = fx_data.iloc[:, 0]
     
     normalized_df = raw_data.copy()
     
-    # 3. Przeliczanie dynamiczne (dzień po dniu)
-    for ticker_name in raw_data.columns:
+    # Jeśli mamy tylko jeden ticker, raw_data może być Series - zamieniamy na DataFrame
+    if isinstance(normalized_df, pd.Series):
+        normalized_df = normalized_df.to_frame()
+
+    # 3. Przeliczanie dynamiczne
+    for ticker_name in normalized_df.columns:
         try:
             t_obj = yf.Ticker(ticker_name)
             native_ccy = t_obj.fast_info['currency']
@@ -22,13 +28,13 @@ def get_final_data(tickers_tuple, target_ccy):
             native_ccy = 'USD'
             
         if native_ccy == "USD" and target_ccy == "PLN":
-            # Mnożymy cenę z każdego dnia przez kurs z tego samego dnia
-            normalized_df[ticker_name] = raw_data[ticker_name] * fx_data
+            # Używamy .multiply dla pewności wyrównania dat
+            normalized_df[ticker_name] = normalized_df[ticker_name].multiply(fx_data, axis=0)
         elif native_ccy == "PLN" and target_ccy == "USD":
-            # Dzielimy cenę z każdego dnia przez kurs z tego samego dnia
-            normalized_df[ticker_name] = raw_data[ticker_name] / fx_data
+            # Używamy .divide
+            normalized_df[ticker_name] = normalized_df[ticker_name].divide(fx_data, axis=0)
             
-    # Usuwamy wiersze, gdzie nie ma danych (np. święta w USA, które nie są świętami w PL)
+    # Usuwamy wiersze, gdzie nie ma kompletu danych (np. luki w święta)
     return normalized_df.dropna()
 
 def get_portfolio_stats(data_only):
