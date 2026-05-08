@@ -252,7 +252,7 @@ if analizuj:
             except: pass
 
     with st.spinner(L["spinner_loading"]):
-    try:
+        try:
         # ZMIANA: Zawsze dodajemy SPY do listy, bo jest potrzebny do Backtestingu (benchmark)
         # list(set(...)) usuwa duplikaty, gdyby użytkownik sam wpisał SPY
         fetch_list = list(set(tickers + ["SPY"]))
