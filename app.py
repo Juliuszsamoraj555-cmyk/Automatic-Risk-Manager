@@ -68,7 +68,7 @@ with st.sidebar:
         st.info(L["login_info"])
         
         with st.popover(L["auth_popover"], use_container_width=True):
-    tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
+            tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
             
             # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
             with tab_l:
