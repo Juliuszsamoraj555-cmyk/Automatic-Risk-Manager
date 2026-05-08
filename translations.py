@@ -102,7 +102,11 @@ LANGS = {
         "spinner_loading": "Trwa analiza danych i symulacja Monte Carlo...",
         "err_generic": "Wystąpił nieoczekiwany błąd podczas analizy.",
         "err_details": "Szczegóły błędu",
-        
+        "tab_backtest": "Backtesting",
+        "backtest_header": "Wyniki historyczne (Ostatnie 3 lata)",
+        "backtest_desc": "Wykres pokazuje, jak zachowałby się ten portfel w przeszłości w porównaniu do indeksu S&P 500 (SPY).",
+        "backtest_port_label": "Twój Portfel vAlpha",
+        "backtest_bench_label": "Benchmark (S&P 500)",
     
     },
     "EN": {
@@ -204,5 +208,10 @@ LANGS = {
         "auth_popover": "Login / Register",
         "err_generic": "An unexpected error occurred during the analysis.",
         "err_details": "Error details"
+        "tab_backtest": "Backtesting",
+        "backtest_header": "Historical Performance (Last 3 Years)",
+        "backtest_desc": "The chart shows how this portfolio would have performed in the past compared to the S&P 500 index (SPY).",
+        "backtest_port_label": "Your vAlpha Portfolio",
+        "backtest_bench_label": "Benchmark (S&P 500)",
     }
 }
