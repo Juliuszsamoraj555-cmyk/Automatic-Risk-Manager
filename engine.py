@@ -76,7 +76,7 @@ def optimize_weights(tickers, monthly_rets, monthly_vars, corr_matrix, opt_mode,
                    method='SLSQP', bounds=c_bounds, constraints=constraints)
     return res.x
 
-def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas, target_ccy):
+def run_monte_carlo(data_only, wagi, kwota, tickers, adj_mc, rf_rate, mkt_ret, alpha_ret, beta_speed, betas, alphas, target_ccy, mc_labels):
     n_sims, dt = 3000, 1/252
     log_rets = np.log(data_only / data_only.shift(1)).dropna()
     p_sigma = np.sqrt(np.dot(wagi.T, np.dot(log_rets.cov().values, wagi))) * np.sqrt(252)
