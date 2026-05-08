@@ -101,6 +101,8 @@ LANGS = {
         "auth_popover": "Zaloguj się / Rejestracja",
         "spinner_loading": "Trwa analiza danych i symulacja Monte Carlo...",
         "err_generic": "Wystąpił nieoczekiwany błąd podczas analizy.",
+        "err_details": "Szczegóły błędu",
+        
     
     },
     "EN": {
@@ -201,5 +203,6 @@ LANGS = {
         "spinner_loading": "Analyzing data and running Monte Carlo simulation...",
         "auth_popover": "Login / Register",
         "err_generic": "An unexpected error occurred during the analysis.",
+        "err_details": "Error details"
     }
 }
