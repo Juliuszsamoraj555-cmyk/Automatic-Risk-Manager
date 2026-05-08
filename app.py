@@ -257,11 +257,7 @@ if analizuj:
             fetch_list = tickers + (["SPY"] if adj_mc else [])
             
             # 1. POBIERANIE SUROWYCH DANYCH
-            raw_data = engine.get_data(tuple(fetch_list))
-            
-            # 2. NORMALIZACJA WALUTOWA (DODAJ TO!)
-            # Tutaj zamieniamy np. Apple z USD na PLN (lub odwrotnie)
-            data = engine.normalize_to_target_currency(raw_data, current_currency)
+            data = engine.get_final_data(tuple(fetch_list), current_currency)
             
             if data is None or data.empty:
                 st.error(L["error_no_data"])
