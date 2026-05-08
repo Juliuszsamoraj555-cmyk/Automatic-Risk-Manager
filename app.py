@@ -182,7 +182,7 @@ constraints_input = st.text_input(
     disabled=not is_pro,
     help=L["min_weight_help"]
 )
-    )
+    
     
 st.divider()
 run_mc = st.checkbox(
