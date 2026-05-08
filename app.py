@@ -170,7 +170,7 @@ limit_2x = st.checkbox(
     value=True, 
     help=L["limit_2x_help"]
 )
-)
+
     
     # --- BLOKADA FUNKCJI PRO (UI) ---
     suffix = L["min_weight_locked"] if not is_pro else ""
