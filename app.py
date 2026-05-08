@@ -257,7 +257,7 @@ if analizuj:
             # list(set(...)) usuwa duplikaty, gdyby użytkownik sam wpisał SPY
             fetch_list = list(set(tickers + ["SPY"]))
         
-            1. POBIERANIE DANYCH (Silnik sam przelicza waluty)
+            #1. POBIERANIE DANYCH (Silnik sam przelicza waluty)
             data = engine.get_final_data(tuple(fetch_list), current_currency)
         
         if data is None or data.empty:
