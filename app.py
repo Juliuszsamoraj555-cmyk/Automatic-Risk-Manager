@@ -302,36 +302,36 @@ if analizuj:
     
                 c1, c2, c3 = st.columns(3)
     
-    # METRYKA 1: VaR
-    c1.metric(L["metric_var_label"], f"{p_var*100:.2f}%")
-    c1.caption(L["metric_var_caption"])
+                # METRYKA 1: VaR
+                c1.metric(L["metric_var_label"], f"{p_var*100:.2f}%")
+                c1.caption(L["metric_var_caption"])
                 
                 # METRYKA 2: Korelacja
-avg_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean()
-c2.metric(L["metric_corr_label"], f"{avg_corr:.2f}")
-c2.caption(L["metric_corr_caption"])
+                avg_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)).stack().mean()
+                c2.metric(L["metric_corr_label"], f"{avg_corr:.2f}")
+                c2.caption(L["metric_corr_caption"])
 
-# METRYKA 3: Ryzyko kwotowe (Dynamiczna waluta)
-c3.metric(
-    L["metric_risk_val_label"].format(current_currency), 
-    f"{p_var * kwota:,.0f} {current_currency}"
-)
-c3.caption(L["metric_risk_val_caption"])
+                # METRYKA 3: Ryzyko kwotowe (Dynamiczna waluta)
+                c3.metric(
+                L["metric_risk_val_label"].format(current_currency), 
+                f"{p_var * kwota:,.0f} {current_currency}"
+                )
+                c3.caption(L["metric_risk_val_caption"])
 
-# TABELA: Udziały w portfelu
-df_out = pd.DataFrame({
-    L['col_ticker']: tickers, 
-    L['col_share']: wagi * 100, 
-    current_currency: wagi * kwota
-})
+                # TABELA: Udziały w portfelu
+                df_out = pd.DataFrame({
+                L['col_ticker']: tickers, 
+                L['col_share']: wagi * 100, 
+                current_currency: wagi * kwota
+                })
 
-st.dataframe(
-    df_out.sort_values(L['col_share'], ascending=False).style.format({
-        L['col_share']: '{:.2f}%', 
-        current_currency: f'{{:,.2f}} {current_currency}'
-    }), 
-    use_container_width=True, 
-    hide_index=True
+                st.dataframe(
+                    df_out.sort_values(L['col_share'], ascending=False).style.format({
+                    L['col_share']: '{:.2f}%', 
+                    current_currency: f'{{:,.2f}} {current_currency}'
+                    }), 
+                use_container_width=True, 
+                hide_index=True
 )
 
             with t2:
