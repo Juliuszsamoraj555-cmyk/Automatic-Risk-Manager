@@ -135,13 +135,10 @@ with st.sidebar:
     
     # --- INPUTY STANDARDOWE ---
     tickers_input = st.text_input(
-    L["tickers_label"],
-        "AAPL, MSFT, NVDA, TSLA, AMZN",
-        tickers_input = st.text_input(
     L["tickers_label"], 
     value="AAPL, MSFT, NVDA, TSLA, AMZN", 
     help=L["tickers_help"]
-    )
+)
     
     kwota = st.number_input(
         L["capital_label"].format(current_currency), 
