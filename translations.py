@@ -99,6 +99,7 @@ LANGS = {
         "mc_5y": "PROGNOZA 5 LAT",
         "mc_10y": "PROGNOZA 10 LAT",
         "auth_popover": "Zaloguj się / Rejestracja",
+        "spinner_loading": "Trwa analiza danych i symulacja Monte Carlo...",
     
     },
     "EN": {
@@ -196,6 +197,7 @@ LANGS = {
         "mc_metrics": ["95th Percentile", "3rd Quartile (Q3)", "Median", "1st Quartile (Q1)", "5th Percentile", "Prob. of loss", "CAGR"],
         "mc_5y": "5-YEAR FORECAST",
         "mc_10y": "10-YEAR FORECAST",
+        "spinner_loading": "Analyzing data and running Monte Carlo simulation...",
         "auth_popover": "Login / Register",
     }
 }
