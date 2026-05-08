@@ -387,7 +387,8 @@ if analizuj:
                 st.header(L["t4_header"])
                 st.markdown(L["t4_text"])
 
-        except Exception as e:
-            st.error(f"{L['err_analysis_main']}")
+        except Exception as e: # <--- DODAJ 'as e'
+            st.error("Wystąpił błąd")
+            st.code(str(e)) # Teraz zadziała, bo 'e' to nazwa błędu
     with st.expander(L["err_details"]):
         st.code(str(e))
