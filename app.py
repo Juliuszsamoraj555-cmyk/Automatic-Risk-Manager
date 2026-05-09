@@ -143,22 +143,22 @@ with st.sidebar:
     
         st.divider()
         
-        # --- INPUTY STANDARDOWE ---
-        tickers_input = st.text_input(
-        L["tickers_label"], 
-        value="AAPL, MSFT, NVDA, TSLA, AMZN", 
-        help=L["tickers_help"]
+    # --- INPUTY STANDARDOWE ---
+    tickers_input = st.text_input(
+    L["tickers_label"], 
+    value="AAPL, MSFT, NVDA, TSLA, AMZN", 
+    help=L["tickers_help"]
+)
+    
+    kwota = st.number_input(
+        L["capital_label"].format(current_currency), 
+        value=25000 if current_currency == "PLN" else 5000
     )
-        
-        kwota = st.number_input(
-            L["capital_label"].format(current_currency), 
-            value=25000 if current_currency == "PLN" else 5000
-        )
-        opt_mode = st.radio(
-        L["opt_model_label"], 
-        L["opt_model_options"],
-        help=L["opt_model_help"]
-    )
+    opt_mode = st.radio(
+    L["opt_model_label"], 
+    L["opt_model_options"],
+    help=L["opt_model_help"]
+)
         # 1. Suwak Ryzyka z mapowaniem
     ryzyko_display = st.select_slider(
         L["risk_label"], 
