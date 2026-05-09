@@ -61,6 +61,16 @@ with st.sidebar:
     st.title("vAlpha Manager")
     st.write("---")
     current_currency = L["currency"]
+if "risk_accepted" not in st.session_state:
+    st.session_state.risk_accepted = False
+
+# 4. LOGIKA DISCLAIMERA (Znikający boks)
+if not st.session_state.risk_accepted:
+    st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
+    if st.sidebar.button(L["btn_accept_risk"], use_container_width=True):
+        st.session_state.risk_accepted = True
+        st.rerun()
+    st.stop()
     
     
     if not is_logged_in:
