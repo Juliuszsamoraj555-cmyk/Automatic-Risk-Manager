@@ -61,187 +61,187 @@ with st.sidebar:
     st.title("vAlpha Manager")
     st.write("---")
     current_currency = L["currency"]
-if "risk_accepted" not in st.session_state:
-    st.session_state.risk_accepted = False
-
-# 4. LOGIKA DISCLAIMERA (Znikający boks)
-if not st.session_state.risk_accepted:
-    st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
-    if st.sidebar.button(L["btn_accept_risk"], use_container_width=True):
-        st.session_state.risk_accepted = True
-        st.rerun()
-    st.stop()
+    if "risk_accepted" not in st.session_state:
+        st.session_state.risk_accepted = False
     
-    
-if not is_logged_in:
-    # --- SEKCJA DLA GOŚCIA ---
-    st.info(L["login_info"])
-    
-    with st.popover(L["auth_popover"], use_container_width=True):
-        tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
-        
-        # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
-        with tab_l:
-            st.text_input(L["email"], key="l_mail")
-            st.text_input(L["password"], type="password", key="l_pw")
-            
-            if st.button("Zaloguj", use_container_width=True):
-                email_val = st.session_state.get("l_mail")
-                pass_val = st.session_state.get("l_pw")
-                
-                if email_val and pass_val:
-                    try:
-                        res = supabase.auth.sign_in_with_password({
-                            "email": email_val, 
-                            "password": pass_val
-                        })
-                        st.session_state.user = res
-                        st.success(L["msg_logged"])
-                        st.rerun()
-                    except Exception as e:
-                        st.error(L["msg_auth_error"])
-                else:
-                   st.warning(L["msg_fill_fields"])
-        with tab_r:
-            st.text_input(L["email"], key="r_mail")     # Używamy L["email"]
-            st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
-            
-            if st.button(L["btn_register"], use_container_width=True):
-                email_reg = st.session_state.get("r_mail")
-                pass_reg = st.session_state.get("r_pw")
-                
-                if email_reg and pass_reg:
-                    try:
-                        supabase.auth.sign_up({
-                            "email": email_reg, 
-                            "password": pass_reg
-                        })
-                        st.success(L["msg_reg_success"])
-                    except:
-                       st.error(L["msg_reg_error"])
-                else:
-                    st.warning(L["msg_fill_reg"])
-    
-    else:
-        # --- SEKCJA DLA ZALOGOWANEGO ---
-        # Ten blok musi być wyrównany do 'if not is_logged_in'
-        st.write(L["welcome"].format(user_email))
-        
-        if is_pro:
-          st.success(L["status_pro"].format(days_left))
-        else:
-            st.warning(L["status_free"])
-            st.link_button(
-            L["btn_unlock_pro"],
-            f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
-        ) # <--- TEGO NAWIASU BRAKOWAŁO
-        if st.button(L["btn_logout"], use_container_width=True):
-            if "user" in st.session_state:
-                del st.session_state.user
+    # 4. LOGIKA DISCLAIMERA (Znikający boks)
+    if not st.session_state.risk_accepted:
+        st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
+        if st.sidebar.button(L["btn_accept_risk"], use_container_width=True):
+            st.session_state.risk_accepted = True
             st.rerun()
-
-
-    st.divider()
+        st.stop()
+        
+        
+    if not is_logged_in:
+        # --- SEKCJA DLA GOŚCIA ---
+        st.info(L["login_info"])
+        
+        with st.popover(L["auth_popover"], use_container_width=True):
+            tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
+            
+            # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
+            with tab_l:
+                st.text_input(L["email"], key="l_mail")
+                st.text_input(L["password"], type="password", key="l_pw")
+                
+                if st.button("Zaloguj", use_container_width=True):
+                    email_val = st.session_state.get("l_mail")
+                    pass_val = st.session_state.get("l_pw")
+                    
+                    if email_val and pass_val:
+                        try:
+                            res = supabase.auth.sign_in_with_password({
+                                "email": email_val, 
+                                "password": pass_val
+                            })
+                            st.session_state.user = res
+                            st.success(L["msg_logged"])
+                            st.rerun()
+                        except Exception as e:
+                            st.error(L["msg_auth_error"])
+                    else:
+                       st.warning(L["msg_fill_fields"])
+            with tab_r:
+                st.text_input(L["email"], key="r_mail")     # Używamy L["email"]
+                st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
+                
+                if st.button(L["btn_register"], use_container_width=True):
+                    email_reg = st.session_state.get("r_mail")
+                    pass_reg = st.session_state.get("r_pw")
+                    
+                    if email_reg and pass_reg:
+                        try:
+                            supabase.auth.sign_up({
+                                "email": email_reg, 
+                                "password": pass_reg
+                            })
+                            st.success(L["msg_reg_success"])
+                        except:
+                           st.error(L["msg_reg_error"])
+                    else:
+                        st.warning(L["msg_fill_reg"])
+        
+        else:
+            # --- SEKCJA DLA ZALOGOWANEGO ---
+            # Ten blok musi być wyrównany do 'if not is_logged_in'
+            st.write(L["welcome"].format(user_email))
+            
+            if is_pro:
+              st.success(L["status_pro"].format(days_left))
+            else:
+                st.warning(L["status_free"])
+                st.link_button(
+                L["btn_unlock_pro"],
+                f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
+            ) # <--- TEGO NAWIASU BRAKOWAŁO
+            if st.button(L["btn_logout"], use_container_width=True):
+                if "user" in st.session_state:
+                    del st.session_state.user
+                st.rerun()
     
-    # --- INPUTY STANDARDOWE ---
-    tickers_input = st.text_input(
-    L["tickers_label"], 
-    value="AAPL, MSFT, NVDA, TSLA, AMZN", 
-    help=L["tickers_help"]
-)
     
-    kwota = st.number_input(
-        L["capital_label"].format(current_currency), 
-        value=25000 if current_currency == "PLN" else 5000
+        st.divider()
+        
+        # --- INPUTY STANDARDOWE ---
+        tickers_input = st.text_input(
+        L["tickers_label"], 
+        value="AAPL, MSFT, NVDA, TSLA, AMZN", 
+        help=L["tickers_help"]
     )
-    opt_mode = st.radio(
-    L["opt_model_label"], 
-    L["opt_model_options"],
-    help=L["opt_model_help"]
-)
-    # 1. Suwak Ryzyka z mapowaniem
-ryzyko_display = st.select_slider(
-    L["risk_label"], 
-    options=L["risk_options"],
-    value=L["risk_options"][1] # Domyślnie środkowa opcja (Średnie/Medium)
-)
-
-# Tłumaczymy wybrany tekst z powrotem na język silnika (low/medium/high)
-risk_map = {
-    L["risk_options"][0]: "low",
-    L["risk_options"][1]: "medium",
-    L["risk_options"][2]: "high"
-}
-ryzyko_val = risk_map[ryzyko_display]
-
-# 2. Checkbox dywersyfikacji
-limit_2x = st.checkbox(
-    L["limit_2x_label"], 
-    value=True, 
-    help=L["limit_2x_help"]
-)
-
+        
+        kwota = st.number_input(
+            L["capital_label"].format(current_currency), 
+            value=25000 if current_currency == "PLN" else 5000
+        )
+        opt_mode = st.radio(
+        L["opt_model_label"], 
+        L["opt_model_options"],
+        help=L["opt_model_help"]
+    )
+        # 1. Suwak Ryzyka z mapowaniem
+    ryzyko_display = st.select_slider(
+        L["risk_label"], 
+        options=L["risk_options"],
+        value=L["risk_options"][1] # Domyślnie środkowa opcja (Średnie/Medium)
+    )
     
-    # --- BLOKADA FUNKCJI PRO (UI) ---
-suffix = L["min_weight_locked"] if not is_pro else ""
-label_min = L["min_weight_label"] + suffix
-
-# 2. Wyświetlamy pole tekstowe
-constraints_input = st.text_input(
-    label_min, 
-    placeholder="NVDA:10", 
-    disabled=not is_pro,
-    help=L["min_weight_help"]
-)
+    # Tłumaczymy wybrany tekst z powrotem na język silnika (low/medium/high)
+    risk_map = {
+        L["risk_options"][0]: "low",
+        L["risk_options"][1]: "medium",
+        L["risk_options"][2]: "high"
+    }
+    ryzyko_val = risk_map[ryzyko_display]
     
+    # 2. Checkbox dywersyfikacji
+    limit_2x = st.checkbox(
+        L["limit_2x_label"], 
+        value=True, 
+        help=L["limit_2x_help"]
+    )
     
-st.divider()
-run_mc = st.checkbox(
-    L["run_mc_label"], 
-    value=True, 
-    help=L["run_mc_help"]
-)
-suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
-label_adj = L["valpha_engine_label"] + suffix_adj
-
-adj_mc_checkbox = st.checkbox(
-    label_adj, 
-    value=False, 
-    help=L["valpha_engine_help"]
-)
-adj_mc = False
-rf_rate, mkt_ret, alpha_ret, beta_speed = 0.04, 0.10, 30.0, 0.05
-if adj_mc_checkbox:
-    if is_pro:
-            adj_mc = True
-            with st.expander(L["expander_market"], expanded=False):
-                rf_rate = st.number_input(
-                    L["rf_label"], 
-                    value=4.0, 
-                    help=L["rf_help"]
-                ) / 100
-                
-                mkt_ret = st.number_input(
-                    L["rm_label"], 
-                    value=10.0, 
-                    help=L["rm_help"]
-                ) / 100
-                
-                alpha_ret = st.slider(
-                    L["alpha_label"], 
-                    0, 100, 30, 
-                    help=L["alpha_help"]
-                )
-                
-                beta_speed = st.slider(
-                    L["beta_speed_label"], 
-                    0.0, 0.2, 0.05, 
-                    help=L["beta_speed_help"]
-                )
-    else:
-            st.warning(L["msg_pro_required"])
-
-analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
+        
+        # --- BLOKADA FUNKCJI PRO (UI) ---
+    suffix = L["min_weight_locked"] if not is_pro else ""
+    label_min = L["min_weight_label"] + suffix
+    
+    # 2. Wyświetlamy pole tekstowe
+    constraints_input = st.text_input(
+        label_min, 
+        placeholder="NVDA:10", 
+        disabled=not is_pro,
+        help=L["min_weight_help"]
+    )
+        
+        
+    st.divider()
+    run_mc = st.checkbox(
+        L["run_mc_label"], 
+        value=True, 
+        help=L["run_mc_help"]
+    )
+    suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
+    label_adj = L["valpha_engine_label"] + suffix_adj
+    
+    adj_mc_checkbox = st.checkbox(
+        label_adj, 
+        value=False, 
+        help=L["valpha_engine_help"]
+    )
+    adj_mc = False
+    rf_rate, mkt_ret, alpha_ret, beta_speed = 0.04, 0.10, 30.0, 0.05
+    if adj_mc_checkbox:
+        if is_pro:
+                adj_mc = True
+                with st.expander(L["expander_market"], expanded=False):
+                    rf_rate = st.number_input(
+                        L["rf_label"], 
+                        value=4.0, 
+                        help=L["rf_help"]
+                    ) / 100
+                    
+                    mkt_ret = st.number_input(
+                        L["rm_label"], 
+                        value=10.0, 
+                        help=L["rm_help"]
+                    ) / 100
+                    
+                    alpha_ret = st.slider(
+                        L["alpha_label"], 
+                        0, 100, 30, 
+                        help=L["alpha_help"]
+                    )
+                    
+                    beta_speed = st.slider(
+                        L["beta_speed_label"], 
+                        0.0, 0.2, 0.05, 
+                        help=L["beta_speed_help"]
+                    )
+        else:
+                st.warning(L["msg_pro_required"])
+    
+    analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
 
 # --- LOGIKA ANALIZY (FREEMIUM ENFORCEMENT) ---
 if analizuj:
