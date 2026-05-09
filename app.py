@@ -440,7 +440,6 @@ if analizuj:
                         showgrid=True, gridcolor='rgba(255,255,255,0.1)',
                         ticksuffix="%", side="right"
                     )
-                )
             
                     # Wyświetlenie interaktywnego wykresu
                     st.plotly_chart(fig, use_container_width=True)
