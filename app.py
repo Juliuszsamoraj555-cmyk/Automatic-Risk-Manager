@@ -442,17 +442,17 @@ if analizuj:
                     )
                 )
                     # Wyświetlenie interaktywnego wykresu
-                    st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
+            
+                # Statystyki pod wykresem
+                final_return = (port_cum.iloc[-1] - 1) * 100
+                bench_return = (bench_cum.iloc[-1] - 1) * 100
                 
-                    # Statystyki pod wykresem
-                    final_return = (port_cum.iloc[-1] - 1) * 100
-                    bench_return = (bench_cum.iloc[-1] - 1) * 100
-                    
-                    col1, col2, col3 = st.columns(3)
-                    col1.metric(L["backtest_port_label"], f"{final_return:.2f}%")
-                    col2.metric(L["backtest_bench_label"], f"{bench_return:.2f}%")
-                    col3.metric("Alpha", f"{final_return - bench_return:.2f}%", 
-                                delta=f"{final_return - bench_return:.2f}%")
+                col1, col2, col3 = st.columns(3)
+                col1.metric(L["backtest_port_label"], f"{final_return:.2f}%")
+                col2.metric(L["backtest_bench_label"], f"{bench_return:.2f}%")
+                col3.metric("Alpha", f"{final_return - bench_return:.2f}%", 
+                            delta=f"{final_return - bench_return:.2f}%")
 
         except Exception as e:  # <--- KLUCZOWY MOMENT: tutaj nazywamy błąd literką 'e'
             st.error(L["err_generic"]) # Twoja ogólna wiadomość o błędzie
