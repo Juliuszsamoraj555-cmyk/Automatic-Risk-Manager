@@ -392,32 +392,68 @@ if analizuj:
                 st.markdown(L["t4_text"])
             with t5:
                 st.subheader(L["backtest_header"])
-                st.write(L["backtest_desc"])
     
-                fig_bt, ax_bt = plt.subplots(figsize=(10, 5))
-    
-                # Rysujemy portfel
-                ax_bt.plot(port_cum * 100, label=L["backtest_port_label"], color='#238636', linewidth=2.5)
-                # Rysujemy benchmark
-                ax_bt.plot(bench_cum * 100, label=L["backtest_bench_label"], color='white', alpha=0.6, linestyle='--')
-    
-                # Estetyka
-                ax_bt.set_facecolor('#0d1117')
-                fig_bt.patch.set_facecolor('#0d1117')
-                ax_bt.set_ylabel(f"{L['capital_label'].split()[0]} (%)") # Pokazuje % wzrostu
-                ax_bt.legend()
-                ax_bt.grid(alpha=0.1)
-    
-                st.pyplot(fig_bt)
-    
-                # Mini statystyka pod wykresem
-                final_return = (port_cum.iloc[-1] - 1) * 100
-                bench_return = (bench_cum.iloc[-1] - 1) * 100
-    
-                c1, c2 = st.columns(2)
-                c1.metric(L["backtest_port_label"], f"{final_return:.2f}%")
-                c2.metric(L["backtest_bench_label"], f"{bench_return:.2f}%", 
-                delta=f"{final_return - bench_return:.2f}% Alpha")
+                # Tworzymy profesjonalny wykres Plotly
+                fig = go.Figure()
+
+                # Linia Portfela (Grubsza, neonowy turkus jak na zdjęciu)
+                fig.add_trace(go.Scatter(
+                x=port_cum.index, 
+                y=(port_cum - 1) * 100,
+                mode='lines',
+                name=L["backtest_port_label"],
+                line=dict(color='#00d4ff', width=3),
+                hovertemplate='%{y:.2f}%'
+                ))
+
+                # Linia Benchmarku (Cieńsza, szara/przerywana)
+                fig.add_trace(go.Scatter(
+                x=bench_cum.index, 
+                y=(bench_cum - 1) * 100,
+                mode='lines',
+                name=L["backtest_bench_label"],
+                line=dict(color='rgba(255, 255, 255, 0.4)', width=1.5, dash='dash'),
+                hovertemplate='%{y:.2f}%'
+            ))
+        
+            # Stylistyka "Professional Dark" nawiązująca do image_28725d.png
+                fig.update_layout(
+                    template="plotly_dark",
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(l=20, r=20, t=20, b=20),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    hovermode="x unified",
+                    xaxis=dict(
+                        showgrid=True, gridcolor='rgba(255,255,255,0.1)',
+                        rangeselector=dict(
+                            buttons=list([
+                                dict(count=1, label="1M", step="month", stepmode="backward"),
+                                dict(count=6, label="6M", step="month", stepmode="backward"),
+                                dict(count=1, label="1Y", step="year", stepmode="backward"),
+                                dict(step="all", label="MAX")
+                            ]),
+                            bgcolor="rgba(0,0,0,0)", activecolor="#00d4ff"
+                        )
+                    ),
+                    yaxis=dict(
+                        showgrid=True, gridcolor='rgba(255,255,255,0.1)',
+                        ticksuffix="%", side="right"
+                    )
+                )
+            
+                    # Wyświetlenie interaktywnego wykresu
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                    # Statystyki pod wykresem
+                    final_return = (port_cum.iloc[-1] - 1) * 100
+                    bench_return = (bench_cum.iloc[-1] - 1) * 100
+                    
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric(L["backtest_port_label"], f"{final_return:.2f}%")
+                    col2.metric(L["backtest_bench_label"], f"{bench_return:.2f}%")
+                    col3.metric("Alpha", f"{final_return - bench_return:.2f}%", 
+                                delta=f"{final_return - bench_return:.2f}%")
 
         except Exception as e:  # <--- KLUCZOWY MOMENT: tutaj nazywamy błąd literką 'e'
             st.error(L["err_generic"]) # Twoja ogólna wiadomość o błędzie
