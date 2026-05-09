@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import translations
+import plotly.graph_objects as go
 from PIL import Image
 from engine import get_final_data
 # 1. IMPORTY TWOICH MODUŁÓW
