@@ -20,7 +20,7 @@ try:
 except:
     st.set_page_config(page_title="vAlpha Manager", layout="wide")
 def inject_ga():
-    ga_id = "G-KCCV2DZKM5"  # <--- WPISZ SWÓJ IDENTYFIKATOR
+    ga_id = "G-K3TS25104D"  # <--- WPISZ SWÓJ IDENTYFIKATOR
     ga_js = f"""
         <script async src="https://www.googletagmanager.com/gtag/js?id={ga_id}"></script>
         <script>
