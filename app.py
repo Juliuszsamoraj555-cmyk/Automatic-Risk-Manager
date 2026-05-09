@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import translations
 import plotly.graph_objects as go
+import streamlit.components.v1 as components
 from PIL import Image
 from engine import get_final_data
 # 1. IMPORTY TWOICH MODUŁÓW
@@ -18,6 +19,20 @@ try:
     st.set_page_config(page_title="vAlpha Manager", page_icon=v_alpha_icon, layout="wide")
 except:
     st.set_page_config(page_title="vAlpha Manager", layout="wide")
+def inject_ga():
+    ga_id = "G-KCCV2DZKM5"  # <--- WPISZ SWÓJ IDENTYFIKATOR
+    ga_js = f"""
+        <script async src="https://www.googletagmanager.com/gtag/js?id={ga_id}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){{dataLayer.push(arguments);}}
+            gtag('js', new Date());
+            gtag('config', '{ga_id}');
+        </script>
+    """
+    components.html(ga_js, height=0)
+
+inject_ga()
 
 # 3. INICJALIZACJA STYLÓW I BAZY
 styles.apply_custom_css()
