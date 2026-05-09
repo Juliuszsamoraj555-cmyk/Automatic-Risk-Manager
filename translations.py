@@ -108,6 +108,9 @@ LANGS = {
         "backtest_port_label": "Twój Portfel vAlpha",
         "backtest_bench_label": "Benchmark (S&P 500)",
         "error_no_data": "Błąd: Nie udało się pobrać danych dla podanych spółek. Sprawdź tickery.",
+        "risk_header": "OSTRZEŻENIE O RYZYKU",
+        "risk_text": "vAlpha to narzędzie edukacyjne. Inwestowanie wiąże się z ryzykiem utraty kapitału. Nie stanowi to porady inwestycyjnej.",
+        "btn_accept_risk": "Rozumiem i akceptuję",
     
     },
     "EN": {
@@ -215,5 +218,8 @@ LANGS = {
         "backtest_port_label": "Your vAlpha Portfolio",
         "backtest_bench_label": "Benchmark (S&P 500)",
         "error_no_data": "Error: Could not fetch data for the given tickers. Please check the symbols.",
+        "risk_header": "RISK WARNING",
+        "risk_text": "vAlpha is an educational tool. Investing involves risk of loss. This is not investment advice.",
+        "btn_accept_risk": "I understand and accept",
     }
 }
