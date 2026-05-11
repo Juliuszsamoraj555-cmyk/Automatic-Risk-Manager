@@ -51,25 +51,37 @@ else:
     days_left = -1
     is_pro = False
 
-# --- SIDEBAR (LOGOWANIE + KONFIGURACJA) ---
-# --- 1. LOGIKA WYBORU JĘZYKA ---
-if 'lang' not in st.session_state:
-    st.session_state.lang = "PL" # Domyślnie polski
-if "risk_accepted" not in st.session_state:
-        st.session_state.risk_accepted = False
-L = translations.LANGS[st.session_state.lang]
-st.markdown("<br>", unsafe_allow_html=True) # Mały odstęp
-st.title("vAlpha Manager")
-st.write("---")
-current_currency = L["currency"]
-    
 
+if 'lang' not in st.session_state:
+    st.session_state.lang = "PL"
+
+if "risk_accepted" not in st.session_state:
+    st.session_state.risk_accepted = False
+
+L = translations.LANGS[st.session_state.lang]
+current_currency = L["currency"]
+
+# --- 2. LOGIKA DISCLAIMERA NA ŚRODKU EKRANU ---
 if not st.session_state.risk_accepted:
-        st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
-        if st.sidebar.button(L["btn_accept_risk"], use_container_width=True):
+    st.markdown("<br><br>", unsafe_allow_html=True) # Odstęp od góry strony
+    
+    # Usunęliśmy .sidebar - komunikat pojawi się na głównym ekranie
+    st.warning(f"## {L['risk_header']}\n\n{L['risk_text']}")
+    
+    # Centrujemy przycisk akceptacji, używając pustych kolumn bocznych
+    col_l, col_btn, col_r = st.columns([1, 2, 1])
+    with col_btn:
+        if st.button(L["btn_accept_risk"], use_container_width=True, type="primary"):
             st.session_state.risk_accepted = True
             st.rerun()
-        st.stop()
+            
+    # Zatrzymujemy kod tutaj - dopóki nie klikną, nie zobaczą nic poniżej
+    st.stop()
+
+# --- 3. EKRAN GŁÓWNY (Pojawia się po kliknięciu "Akceptuję") ---
+st.title("vAlpha Manager")
+st.write("---")
+
 st.header("Konfiguracja Portfela")
 col1, col2 = st.columns(2)
 with col1:
