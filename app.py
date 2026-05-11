@@ -54,6 +54,8 @@ else:
 
 if 'lang' not in st.session_state:
     st.session_state.lang = "PL"
+L = translations.LANGS[st.session_state.lang]
+current_currency = L["currency"]
 
 if "risk_accepted" not in st.session_state:
     st.session_state.risk_accepted = False
@@ -147,8 +149,6 @@ with st.sidebar:
     
     
 
-L = translations.LANGS[st.session_state.lang]
-current_currency = L["currency"]
 
 # --- 2. LOGIKA DISCLAIMERA NA ŚRODKU EKRANU ---
 if not st.session_state.risk_accepted:
