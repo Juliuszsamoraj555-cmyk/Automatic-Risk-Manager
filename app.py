@@ -55,6 +55,14 @@ else:
 # --- 1. LOGIKA WYBORU JĘZYKA ---
 if 'lang' not in st.session_state:
     st.session_state.lang = "PL" # Domyślnie polski
+if "risk_accepted" not in st.session_state:
+        st.session_state.risk_accepted = False
+L = translations.LANGS[st.session_state.lang]
+    st.markdown("<br>", unsafe_allow_html=True) # Mały odstęp
+    st.title("vAlpha Manager")
+    st.write("---")
+    current_currency = L["currency"]
+    
 
 if not st.session_state.risk_accepted:
         st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
@@ -96,6 +104,7 @@ with col2:
     }
     ryzyko_val = risk_map[ryzyko_display]
 st.divider()
+col3, col4 = st.columns(2)
 with col3:
     limit_2x = st.checkbox(
     L["limit_2x_label"], 
@@ -178,13 +187,7 @@ with st.sidebar:
         st.session_state.lang = lang_choice
         st.rerun()
         
-    L = translations.LANGS[st.session_state.lang]
-    st.markdown("<br>", unsafe_allow_html=True) # Mały odstęp
-    st.title("vAlpha Manager")
-    st.write("---")
-    current_currency = L["currency"]
-    if "risk_accepted" not in st.session_state:
-        st.session_state.risk_accepted = False
+    
     
     # 4. LOGIKA DISCLAIMERA (Znikający boks)
     
