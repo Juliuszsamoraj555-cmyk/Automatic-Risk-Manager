@@ -57,6 +57,95 @@ if 'lang' not in st.session_state:
 
 if "risk_accepted" not in st.session_state:
     st.session_state.risk_accepted = False
+with st.sidebar:
+    # 1. Profesjonalny przełącznik języka (płaski, poziomy)
+    lang_choice = st.radio(
+        "Language",
+        options=["PL", "EN"],
+        index=0 if st.session_state.lang == "PL" else 1,
+        horizontal=True,
+        label_visibility="collapsed" # Ukrywamy etykietę "Language"
+    )
+    
+    # Obsługa zmiany (tylko jeśli użytkownik kliknie)
+    if lang_choice != st.session_state.lang:
+        st.session_state.lang = lang_choice
+        st.rerun()
+        
+    
+    
+    # 4. LOGIKA DISCLAIMERA (Znikający boks)
+    
+        
+        
+    if not is_logged_in:
+        # --- SEKCJA DLA GOŚCIA ---
+        st.info(L["login_info"])
+        
+        with st.popover(L["auth_popover"], use_container_width=True):
+            tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
+            
+            # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
+            with tab_l:
+                st.text_input(L["email"], key="l_mail")
+                st.text_input(L["password"], type="password", key="l_pw")
+                
+                if st.button("Zaloguj", use_container_width=True):
+                    email_val = st.session_state.get("l_mail")
+                    pass_val = st.session_state.get("l_pw")
+                    
+                    if email_val and pass_val:
+                        try:
+                            res = supabase.auth.sign_in_with_password({
+                                "email": email_val, 
+                                "password": pass_val
+                            })
+                            st.session_state.user = res
+                            st.success(L["msg_logged"])
+                            st.rerun()
+                        except Exception as e:
+                            st.error(L["msg_auth_error"])
+                    else:
+                       st.warning(L["msg_fill_fields"])
+            with tab_r:
+                st.text_input(L["email"], key="r_mail")     # Używamy L["email"]
+                st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
+                
+                if st.button(L["btn_register"], use_container_width=True):
+                    email_reg = st.session_state.get("r_mail")
+                    pass_reg = st.session_state.get("r_pw")
+                    
+                    if email_reg and pass_reg:
+                        try:
+                            supabase.auth.sign_up({
+                                "email": email_reg, 
+                                "password": pass_reg
+                            })
+                            st.success(L["msg_reg_success"])
+                        except:
+                           st.error(L["msg_reg_error"])
+                    else:
+                        st.warning(L["msg_fill_reg"])
+        
+    else:
+        # --- SEKCJA DLA ZALOGOWANEGO ---
+        # Ten blok musi być wyrównany do 'if not is_logged_in'
+        st.write(L["welcome"].format(user_email))
+        
+        if is_pro:
+          st.success(L["status_pro"].format(days_left))
+        else:
+            st.warning(L["status_free"])
+            st.link_button(
+            L["btn_unlock_pro"],
+            f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
+        ) # <--- TEGO NAWIASU BRAKOWAŁO
+        if st.button(L["btn_logout"], use_container_width=True):
+            if "user" in st.session_state:
+                del st.session_state.user
+            st.rerun()
+    
+    
 
 L = translations.LANGS[st.session_state.lang]
 current_currency = L["currency"]
@@ -184,96 +273,8 @@ analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
     
     
     
-with st.sidebar:
-    # 1. Profesjonalny przełącznik języka (płaski, poziomy)
-    lang_choice = st.radio(
-        "Language",
-        options=["PL", "EN"],
-        index=0 if st.session_state.lang == "PL" else 1,
-        horizontal=True,
-        label_visibility="collapsed" # Ukrywamy etykietę "Language"
-    )
-    
-    # Obsługa zmiany (tylko jeśli użytkownik kliknie)
-    if lang_choice != st.session_state.lang:
-        st.session_state.lang = lang_choice
-        st.rerun()
+
         
-    
-    
-    # 4. LOGIKA DISCLAIMERA (Znikający boks)
-    
-        
-        
-    if not is_logged_in:
-        # --- SEKCJA DLA GOŚCIA ---
-        st.info(L["login_info"])
-        
-        with st.popover(L["auth_popover"], use_container_width=True):
-            tab_l, tab_r = st.tabs([L["tab_login"], L["tab_register"]])
-            
-            # WSZYSTKO PONIŻEJ MUSI BYĆ WCIĘTE W RAMACH POPOVERA
-            with tab_l:
-                st.text_input(L["email"], key="l_mail")
-                st.text_input(L["password"], type="password", key="l_pw")
-                
-                if st.button("Zaloguj", use_container_width=True):
-                    email_val = st.session_state.get("l_mail")
-                    pass_val = st.session_state.get("l_pw")
-                    
-                    if email_val and pass_val:
-                        try:
-                            res = supabase.auth.sign_in_with_password({
-                                "email": email_val, 
-                                "password": pass_val
-                            })
-                            st.session_state.user = res
-                            st.success(L["msg_logged"])
-                            st.rerun()
-                        except Exception as e:
-                            st.error(L["msg_auth_error"])
-                    else:
-                       st.warning(L["msg_fill_fields"])
-            with tab_r:
-                st.text_input(L["email"], key="r_mail")     # Używamy L["email"]
-                st.text_input(L["password"], type="password", key="r_pw") # Używamy L["password"]
-                
-                if st.button(L["btn_register"], use_container_width=True):
-                    email_reg = st.session_state.get("r_mail")
-                    pass_reg = st.session_state.get("r_pw")
-                    
-                    if email_reg and pass_reg:
-                        try:
-                            supabase.auth.sign_up({
-                                "email": email_reg, 
-                                "password": pass_reg
-                            })
-                            st.success(L["msg_reg_success"])
-                        except:
-                           st.error(L["msg_reg_error"])
-                    else:
-                        st.warning(L["msg_fill_reg"])
-        
-    else:
-        # --- SEKCJA DLA ZALOGOWANEGO ---
-        # Ten blok musi być wyrównany do 'if not is_logged_in'
-        st.write(L["welcome"].format(user_email))
-        
-        if is_pro:
-          st.success(L["status_pro"].format(days_left))
-        else:
-            st.warning(L["status_free"])
-            st.link_button(
-            L["btn_unlock_pro"],
-            f"https://buy.stripe.com/7sYbJ1fft827aVRbPud3i03?prefilled_email={user_email}"
-        ) # <--- TEGO NAWIASU BRAKOWAŁO
-        if st.button(L["btn_logout"], use_container_width=True):
-            if "user" in st.session_state:
-                del st.session_state.user
-            st.rerun()
-    
-    
-        st.divider()
         
 
 # --- LOGIKA ANALIZY (FREEMIUM ENFORCEMENT) ---
