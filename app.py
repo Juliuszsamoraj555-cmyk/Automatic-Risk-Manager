@@ -56,6 +56,113 @@ else:
 if 'lang' not in st.session_state:
     st.session_state.lang = "PL" # Domyślnie polski
 
+if not st.session_state.risk_accepted:
+        st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
+        if st.sidebar.button(L["btn_accept_risk"], use_container_width=True):
+            st.session_state.risk_accepted = True
+            st.rerun()
+        st.stop()
+st.header("Konfiguracja Portfela")
+col1, col2 = st.columns(2)
+with col1:
+    tickers_input = st.text_input(
+    L["tickers_label"], 
+    value="AAPL, MSFT, NVDA, TSLA, AMZN", 
+    help=L["tickers_help"]
+)
+    
+    kwota = st.number_input(
+    L["capital_label"].format(current_currency), 
+    value=25000 if current_currency == "PLN" else 5000
+    )
+with col2:
+    opt_mode = st.radio(
+    L["opt_model_label"], 
+    L["opt_model_options"],
+    help=L["opt_model_help"]
+)
+        # 1. Suwak Ryzyka z mapowaniem
+    ryzyko_display = st.select_slider(
+    L["risk_label"], 
+    options=L["risk_options"],
+    value=L["risk_options"][1] # Domyślnie środkowa opcja (Średnie/Medium)
+    )
+    
+    # Tłumaczymy wybrany tekst z powrotem na język silnika (low/medium/high)
+    risk_map = {
+    L["risk_options"][0]: "low",
+    L["risk_options"][1]: "medium",
+    L["risk_options"][2]: "high"
+    }
+    ryzyko_val = risk_map[ryzyko_display]
+st.divider()
+with col3:
+    limit_2x = st.checkbox(
+    L["limit_2x_label"], 
+    value=True, 
+    help=L["limit_2x_help"]
+    ) 
+        # --- BLOKADA FUNKCJI PRO (UI) ---
+    suffix = L["min_weight_locked"] if not is_pro else ""
+    label_min = L["min_weight_label"] + suffix
+    
+    # 2. Wyświetlamy pole tekstowe
+    constraints_input = st.text_input(
+    label_min, 
+    placeholder="NVDA:10", 
+    disabled=not is_pro,
+    help=L["min_weight_help"]
+    )
+with col4:
+    run_mc = st.checkbox(
+    L["run_mc_label"], 
+    value=True, 
+    help=L["run_mc_help"]
+    )
+    suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
+    label_adj = L["valpha_engine_label"] + suffix_adj
+    
+    adj_mc_checkbox = st.checkbox(
+    label_adj, 
+    value=False, 
+    help=L["valpha_engine_help"]
+    )
+    adj_mc = False
+    rf_rate, mkt_ret, alpha_ret, beta_speed = 0.04, 0.10, 30.0, 0.05
+    if adj_mc_checkbox:
+        if is_pro:
+                adj_mc = True
+                with st.expander(L["expander_market"], expanded=False):
+                    rf_rate = st.number_input(
+                        L["rf_label"], 
+                        value=4.0, 
+                        help=L["rf_help"]
+                    ) / 100
+                    
+                    mkt_ret = st.number_input(
+                        L["rm_label"], 
+                        value=10.0, 
+                        help=L["rm_help"]
+                    ) / 100
+                    
+                    alpha_ret = st.slider(
+                        L["alpha_label"], 
+                        0, 100, 30, 
+                        help=L["alpha_help"]
+                    )
+                    
+                    beta_speed = st.slider(
+                        L["beta_speed_label"], 
+                        0.0, 0.2, 0.05, 
+                        help=L["beta_speed_help"]
+                    )
+        else:
+                st.warning(L["msg_pro_required"])
+ 
+analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
+    
+    
+    
 with st.sidebar:
     # 1. Profesjonalny przełącznik języka (płaski, poziomy)
     lang_choice = st.radio(
@@ -80,12 +187,7 @@ with st.sidebar:
         st.session_state.risk_accepted = False
     
     # 4. LOGIKA DISCLAIMERA (Znikający boks)
-    if not st.session_state.risk_accepted:
-        st.sidebar.warning(f"### {L['risk_header']}\n{L['risk_text']}")
-        if st.sidebar.button(L["btn_accept_risk"], use_container_width=True):
-            st.session_state.risk_accepted = True
-            st.rerun()
-        st.stop()
+    
         
         
     if not is_logged_in:
@@ -158,105 +260,6 @@ with st.sidebar:
     
         st.divider()
         
-    # --- INPUTY STANDARDOWE ---
-    tickers_input = st.text_input(
-    L["tickers_label"], 
-    value="AAPL, MSFT, NVDA, TSLA, AMZN", 
-    help=L["tickers_help"]
-)
-    
-    kwota = st.number_input(
-        L["capital_label"].format(current_currency), 
-        value=25000 if current_currency == "PLN" else 5000
-    )
-    opt_mode = st.radio(
-    L["opt_model_label"], 
-    L["opt_model_options"],
-    help=L["opt_model_help"]
-)
-        # 1. Suwak Ryzyka z mapowaniem
-    ryzyko_display = st.select_slider(
-        L["risk_label"], 
-        options=L["risk_options"],
-        value=L["risk_options"][1] # Domyślnie środkowa opcja (Średnie/Medium)
-    )
-    
-    # Tłumaczymy wybrany tekst z powrotem na język silnika (low/medium/high)
-    risk_map = {
-        L["risk_options"][0]: "low",
-        L["risk_options"][1]: "medium",
-        L["risk_options"][2]: "high"
-    }
-    ryzyko_val = risk_map[ryzyko_display]
-    
-    # 2. Checkbox dywersyfikacji
-    limit_2x = st.checkbox(
-        L["limit_2x_label"], 
-        value=True, 
-        help=L["limit_2x_help"]
-    )
-    
-        
-        # --- BLOKADA FUNKCJI PRO (UI) ---
-    suffix = L["min_weight_locked"] if not is_pro else ""
-    label_min = L["min_weight_label"] + suffix
-    
-    # 2. Wyświetlamy pole tekstowe
-    constraints_input = st.text_input(
-        label_min, 
-        placeholder="NVDA:10", 
-        disabled=not is_pro,
-        help=L["min_weight_help"]
-    )
-        
-        
-    st.divider()
-    run_mc = st.checkbox(
-        L["run_mc_label"], 
-        value=True, 
-        help=L["run_mc_help"]
-    )
-    suffix_adj = L["valpha_engine_locked"] if not is_pro else ""
-    label_adj = L["valpha_engine_label"] + suffix_adj
-    
-    adj_mc_checkbox = st.checkbox(
-        label_adj, 
-        value=False, 
-        help=L["valpha_engine_help"]
-    )
-    adj_mc = False
-    rf_rate, mkt_ret, alpha_ret, beta_speed = 0.04, 0.10, 30.0, 0.05
-    if adj_mc_checkbox:
-        if is_pro:
-                adj_mc = True
-                with st.expander(L["expander_market"], expanded=False):
-                    rf_rate = st.number_input(
-                        L["rf_label"], 
-                        value=4.0, 
-                        help=L["rf_help"]
-                    ) / 100
-                    
-                    mkt_ret = st.number_input(
-                        L["rm_label"], 
-                        value=10.0, 
-                        help=L["rm_help"]
-                    ) / 100
-                    
-                    alpha_ret = st.slider(
-                        L["alpha_label"], 
-                        0, 100, 30, 
-                        help=L["alpha_help"]
-                    )
-                    
-                    beta_speed = st.slider(
-                        L["beta_speed_label"], 
-                        0.0, 0.2, 0.05, 
-                        help=L["beta_speed_help"]
-                    )
-        else:
-                st.warning(L["msg_pro_required"])
-    
-    analizuj = st.button(L["btn_run_analysis"], use_container_width=True)
 
 # --- LOGIKA ANALIZY (FREEMIUM ENFORCEMENT) ---
 if analizuj:
