@@ -502,3 +502,26 @@ if analizuj:
             st.error(L["err_generic"]) # Twoja ogólna wiadomość o błędzie
             with st.expander(L["err_details"]): # Rozwijane szczegóły
                 st.code(str(e))
+
+
+# --- STOPKA (FOOTER) ---
+st.write("<br><br>", unsafe_allow_html=True) # Odstęp od treści
+st.divider()
+
+# Tworzymy kolumny dla stopki
+foot_col1, foot_col2, foot_col3 = st.columns([2, 1, 1])
+
+with foot_col1:
+    st.markdown(f"**vAlpha Manager © 2026**")
+    st.caption(L.get("footer_disclaimer", "Narzędzie o charakterze wyłącznie edukacyjnym."))
+
+with foot_col2:
+    st.markdown(f"**{L.get('footer_legal', 'Legal')}**")
+    # Linki mogą prowadzić do osobnych podstron lub plików PDF/Markdown
+    st.markdown(f"[{L.get('footer_terms', 'Regulamin')}](#)") 
+    st.markdown(f"[{L.get('footer_privacy', 'Polityka prywatności')}](#)")
+
+with foot_col3:
+    st.markdown(f"**{L.get('footer_support', 'Wsparcie')}**")
+    st.markdown(f"[{L.get('footer_contact', 'Kontakt')}](mailto:support@valpha.pl)")
+    st.markdown(f"[Pomoc / FAQ](#)")
