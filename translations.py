@@ -111,6 +111,12 @@ LANGS = {
         "risk_header": "OSTRZEŻENIE O RYZYKU",
         "risk_text": "vAlpha to narzędzie edukacyjne. Inwestowanie wiąże się z ryzykiem utraty kapitału. Nie stanowi to porady inwestycyjnej.",
         "btn_accept_risk": "Rozumiem i akceptuję",
+        "footer_legal": "Kwestie prawne",
+        "footer_terms": "Regulamin",
+        "footer_privacy": "Polityka prywatności",
+        "footer_support": "Wsparcie",
+        "footer_contact": "Kontakt",
+        "footer_disclaimer": "Analizy nie stanowią rekomendacji inwestycyjnej.",
     
     },
     "EN": {
@@ -221,5 +227,11 @@ LANGS = {
         "risk_header": "RISK WARNING",
         "risk_text": "vAlpha is an educational tool. Investing involves risk of loss. This is not investment advice.",
         "btn_accept_risk": "I understand and accept",
+        "footer_legal": "Legal",
+        "footer_terms": "Terms of Service",
+        "footer_privacy": "Privacy Policy",
+        "footer_support": "Support",
+        "footer_contact": "Contact",
+        "footer_disclaimer": "Analyses do not constitute investment advice.",
     }
 }
