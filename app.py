@@ -505,23 +505,39 @@ if analizuj:
 
 
 # --- STOPKA (FOOTER) ---
-st.write("<br><br>", unsafe_allow_html=True) # Odstęp od treści
+st.write("<br><br>", unsafe_allow_html=True)
 st.divider()
 
-# Tworzymy kolumny dla stopki
 foot_col1, foot_col2, foot_col3 = st.columns([2, 1, 1])
 
 with foot_col1:
     st.markdown(f"**vAlpha Manager © 2026**")
-    st.caption(L.get("footer_disclaimer", "Narzędzie o charakterze wyłącznie edukacyjnym."))
+    st.caption(L["footer_disclaimer"])
 
 with foot_col2:
-    st.markdown(f"**{L.get('footer_legal', 'Legal')}**")
-    # Linki mogą prowadzić do osobnych podstron lub plików PDF/Markdown
-    st.markdown(f"[{L.get('footer_terms', 'Regulamin')}](#)") 
-    st.markdown(f"[{L.get('footer_privacy', 'Polityka prywatności')}](#)")
+    st.markdown(f"**{L['footer_legal']}**")
+    
+    # Pobieramy aktualny język ("PL" lub "EN")
+    current_lang = st.session_state.lang
+
+    @st.dialog(L["footer_terms"], width="large")
+    def show_terms():
+        # Dynamiczne wczytanie: regulamin_PL.md lub regulamin_EN.md
+        with open(f"regulamin_{current_lang}.md", "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+
+    @st.dialog(L["footer_privacy"], width="large")
+    def show_privacy():
+        # Dynamiczne wczytanie: polityka_PL.md lub polityka_EN.md
+        with open(f"polityka_{current_lang}.md", "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+
+    # Wyświetlamy przyciski-linki
+    if st.button(L["footer_terms"], variant="link"):
+        show_terms()
+    if st.button(L["footer_privacy"], variant="link"):
+        show_privacy()
 
 with foot_col3:
-    st.markdown(f"**{L.get('footer_support', 'Wsparcie')}**")
-    st.markdown(f"[{L.get('footer_contact', 'Kontakt')}](mailto:support@valpha.pl)")
-    st.markdown(f"[Pomoc / FAQ](#)")
+    st.markdown(f"**{L['footer_support']}**")
+    st.markdown(f"[{L['footer_contact']}](mailto:support@valpha.pl)")
