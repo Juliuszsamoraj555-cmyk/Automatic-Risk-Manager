@@ -517,25 +517,22 @@ with foot_col1:
 with foot_col2:
     st.markdown(f"**{L['footer_legal']}**")
     
-    # Pobieramy aktualny język ("PL" lub "EN")
     current_lang = st.session_state.lang
 
     @st.dialog(L["footer_terms"], width="large")
     def show_terms():
-        # Dynamiczne wczytanie: regulamin_PL.md lub regulamin_EN.md
         with open(f"regulamin_{current_lang}.md", "r", encoding="utf-8") as f:
             st.markdown(f.read())
 
     @st.dialog(L["footer_privacy"], width="large")
     def show_privacy():
-        # Dynamiczne wczytanie: polityka_PL.md lub polityka_EN.md
         with open(f"polityka_{current_lang}.md", "r", encoding="utf-8") as f:
             st.markdown(f.read())
 
-    # Wyświetlamy przyciski-linki
-    if st.button(L["footer_terms"], variant="link"):
+    # POPRAWKA: Usunięto variant="link". Dodano unikalne klucze (key), co jest dobrą praktyką w Streamlit.
+    if st.button(L["footer_terms"], key="btn_footer_terms", use_container_width=True):
         show_terms()
-    if st.button(L["footer_privacy"], variant="link"):
+    if st.button(L["footer_privacy"], key="btn_footer_privacy", use_container_width=True):
         show_privacy()
 
 with foot_col3:
