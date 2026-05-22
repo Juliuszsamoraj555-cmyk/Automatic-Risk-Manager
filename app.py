@@ -62,12 +62,12 @@ if "risk_accepted" not in st.session_state:
 
 # --- POPRAWIONE MODALE ---
 @st.dialog(L["footer_terms"], width="large")
-def show_terms_modal():
+def show_terms_modal(): # <--- PUSTY NAWIAS
     with open(f"regulamin_{st.session_state.lang}.md", "r", encoding="utf-8") as f:
         st.markdown(f.read())
 
 @st.dialog(L["footer_privacy"], width="large")
-def show_privacy_modal():
+def show_privacy_modal(): # <--- PUSTY NAWIAS
     with open(f"polityka_{st.session_state.lang}.md", "r", encoding="utf-8") as f:
         st.markdown(f.read())
 
@@ -547,14 +547,13 @@ with foot_col1:
     st.caption(f"vAlpha Manager © 2026  |  {L['footer_disclaimer']}")
 
 with foot_col2:
-    # Tworzymy dwie mini-kolumny obok siebie na Regulamin i Politykę
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         if st.button(L["footer_terms"], key="link_terms"):
-            show_terms_modal(st.session_state.lang) # Wywołanie globalnej funkcji
+            show_terms_modal() # <--- USUŃ STĄD st.session_state.lang, zostaw puste ()
     with col_t2:
         if st.button(L["footer_privacy"], key="link_privacy"):
-            show_privacy_modal(st.session_state.lang) # Wywołanie globalnej funkcji
+            show_privacy_modal() # <--- USUŃ STĄD st.session_state.lang, zostaw puste ()
 
 with foot_col3:
     # Dyskretny, mały link mailowy po prawej stronie
