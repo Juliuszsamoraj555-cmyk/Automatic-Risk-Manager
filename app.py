@@ -59,14 +59,17 @@ current_currency = L["currency"]
 
 if "risk_accepted" not in st.session_state:
     st.session_state.risk_accepted = False
+
+# --- POPRAWIONE MODALE ---
 @st.dialog(L["footer_terms"], width="large")
-    def show_terms():
-        with open(f"regulamin_{current_lang}.md", "r", encoding="utf-8") as f:
-            st.markdown(f.read())
+def show_terms_modal():
+    with open(f"regulamin_{st.session_state.lang}.md", "r", encoding="utf-8") as f:
+        st.markdown(f.read())
+
 @st.dialog(L["footer_privacy"], width="large")
-    def show_privacy():
-        with open(f"polityka_{current_lang}.md", "r", encoding="utf-8") as f:
-            st.markdown(f.read())
+def show_privacy_modal():
+    with open(f"polityka_{st.session_state.lang}.md", "r", encoding="utf-8") as f:
+        st.markdown(f.read())
 
 with st.sidebar:
     # 1. Profesjonalny przełącznik języka (płaski, poziomy)
