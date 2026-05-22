@@ -59,6 +59,15 @@ current_currency = L["currency"]
 
 if "risk_accepted" not in st.session_state:
     st.session_state.risk_accepted = False
+@st.dialog(L["footer_terms"], width="large")
+    def show_terms():
+        with open(f"regulamin_{current_lang}.md", "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+@st.dialog(L["footer_privacy"], width="large")
+    def show_privacy():
+        with open(f"polityka_{current_lang}.md", "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+
 with st.sidebar:
     # 1. Profesjonalny przełącznik języka (płaski, poziomy)
     lang_choice = st.radio(
@@ -508,33 +517,42 @@ if analizuj:
 st.write("<br><br>", unsafe_allow_html=True)
 st.divider()
 
-foot_col1, foot_col2, foot_col3 = st.columns([2, 1, 1])
+# Ukrywamy brzydkie, zielone przyciski za pomocą CSS – stają się zwykłym szarym tekstem 13px
+st.markdown("""
+    <style>
+    /* Stylizujemy przyciski w stopce tak, aby udawały czyste linki tekstowe */
+    div[data-testid="stMarkdownContainer"] + div button {
+        background: none !important;
+        border: none !important;
+        padding: 0 !important;
+        color: #8b949e !important;
+        font-size: 13px !important;
+        text-decoration: none !important;
+        cursor: pointer;
+    }
+    div[data-testid="stMarkdownContainer"] + div button:hover {
+        color: #58a6ff !important;
+        text-decoration: underline !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Tworzymy elegancki, trójkolumnowy układ w jednej linii
+foot_col1, foot_col2, foot_col3 = st.columns([2, 2, 1])
 
 with foot_col1:
-    st.markdown(f"**vAlpha Manager © 2026**")
-    st.caption(L["footer_disclaimer"])
+    st.caption(f"vAlpha Manager © 2026  |  {L['footer_disclaimer']}")
 
 with foot_col2:
-    st.markdown(f"**{L['footer_legal']}**")
-    
-    current_lang = st.session_state.lang
-
-    @st.dialog(L["footer_terms"], width="large")
-    def show_terms():
-        with open(f"regulamin_{current_lang}.md", "r", encoding="utf-8") as f:
-            st.markdown(f.read())
-
-    @st.dialog(L["footer_privacy"], width="large")
-    def show_privacy():
-        with open(f"polityka_{current_lang}.md", "r", encoding="utf-8") as f:
-            st.markdown(f.read())
-
-    # POPRAWKA: Usunięto variant="link". Dodano unikalne klucze (key), co jest dobrą praktyką w Streamlit.
-    if st.button(L["footer_terms"], key="btn_footer_terms", use_container_width=True):
-        show_terms()
-    if st.button(L["footer_privacy"], key="btn_footer_privacy", use_container_width=True):
-        show_privacy()
+    # Tworzymy dwie mini-kolumny obok siebie na Regulamin i Politykę
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        if st.button(L["footer_terms"], key="link_terms"):
+            show_terms_modal(st.session_state.lang) # Wywołanie globalnej funkcji
+    with col_t2:
+        if st.button(L["footer_privacy"], key="link_privacy"):
+            show_privacy_modal(st.session_state.lang) # Wywołanie globalnej funkcji
 
 with foot_col3:
-    st.markdown(f"**{L['footer_support']}**")
-    st.markdown(f"[{L['footer_contact']}](mailto:support@valpha.pl)")
+    # Dyskretny, mały link mailowy po prawej stronie
+    st.markdown(f"<p style='font-size:13px; margin:0; text-align:right;'><a href='mailto:support@valpha.pl' style='color:#8b949e; text-decoration:none;'>{L['footer_contact']}</a></p>", unsafe_allow_html=True)
